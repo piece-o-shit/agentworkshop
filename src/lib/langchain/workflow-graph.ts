@@ -23,17 +23,23 @@ export function createWorkflowGraph() {
       messages: {
         type: "list",
         value: [] as BaseMessage[],
-        merge: (a, b) => [...(a || []), ...(b || [])],
+        merge: function(a: BaseMessage[] | undefined, b: BaseMessage[] | undefined) {
+          return [...(a || []), ...(b || [])];
+        }
       },
       current_step: {
         type: "number",
         value: 0,
-        merge: (_, b) => b,
+        merge: function(_: number | undefined, b: number | undefined) {
+          return b || 0;
+        }
       },
       workflow_status: {
         type: "string",
         value: "running",
-        merge: (_, b) => b,
+        merge: function(_: string | undefined, b: string | undefined) {
+          return b || "running";
+        }
       },
     },
   });
@@ -55,8 +61,8 @@ export function createWorkflowGraph() {
         workflow_status: "running",
       };
     },
-    // Add identity function as second element to satisfy RunnableSequence type requirements
-    (state) => state,
+    // Add identity function as second element
+    (state: WorkflowState) => state,
   ]);
 
   // Add the processing node and set edges
@@ -73,11 +79,12 @@ export async function executeWorkflow(
 ): Promise<WorkflowState> {
   const graph = createWorkflowGraph();
   
-  const initialState: WorkflowState = {
-    messages: [new HumanMessage(workflowSteps[0])],
+  // Create initial state with proper typing
+  const initialState = {
+    messages: [new HumanMessage(workflowSteps[0])] as BaseMessage[],
     current_step: 0,
-    workflow_status: "running",
-  };
+    workflow_status: "running"
+  } satisfies WorkflowState;
 
   const result = await graph.invoke(initialState);
   return result as WorkflowState;
