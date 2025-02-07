@@ -1,6 +1,7 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { executeWorkflow } from '@/lib/langchain/workflow-graph';
-import { Tables, Views, Json } from '@/integrations/supabase/types';
+import { Tables } from '@/integrations/supabase/types';
 import type { Workflow, WorkflowStep } from '@/types/workflow';
 
 interface IncrementErrorCountResponse {
@@ -15,7 +16,6 @@ interface WorkflowConfig {
 }
 
 type ScheduledWorkflow = Tables<'scheduled_workflows'>;
-type PendingExecution = Views<'pending_workflow_executions'>;
 
 class WorkflowScheduler {
   private checkInterval: number = 60000; // Check every minute
@@ -59,27 +59,27 @@ class WorkflowScheduler {
     }
   }
 
-  private async executeWorkflow(execution: PendingExecution) {
+  private async executeWorkflow(execution: Tables<'pending_workflow_executions'>) {
     try {
       // Create workflow object from execution data
       // Parse workflow steps from JSON
-      const steps = (execution.steps as Json[]).map(step => ({
-        id: (step as Record<string, unknown>).id as string,
-        name: (step as Record<string, unknown>).name as string,
-        action: (step as Record<string, unknown>).action as string,
-        parameters: (step as Record<string, unknown>).parameters as Record<string, Json>
+      const steps = (execution.steps as any[]).map(step => ({
+        id: step.id as string,
+        name: step.name as string,
+        action: step.action as string,
+        parameters: step.parameters as Record<string, unknown>
       }));
 
       const workflow: Workflow = {
-        id: execution.workflow_id,
-        name: execution.name,
+        id: execution.workflow_id!,
+        name: execution.name!,
         description: "Scheduled workflow execution",
         created_by: "scheduler",
         steps,
         status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        config: execution.config as Record<string, Json>
+        config: execution.config as Record<string, unknown>
       };
 
       // Update last_run time
@@ -97,23 +97,31 @@ class WorkflowScheduler {
         ...(execution.config as WorkflowConfig),
         onStepComplete: async (step, result) => {
           // Log step completion
-          await supabase.from('workflow_execution_logs').insert({
-            workflow_id: workflow.id,
-            step: step,
-            status: 'completed',
-            result: result,
-            execution_time: new Date().toISOString()
-          });
+          const { error } = await supabase
+            .from('workflow_execution_logs')
+            .insert({
+              workflow_id: workflow.id,
+              step: step,
+              status: 'completed',
+              result: result,
+              execution_time: new Date().toISOString()
+            });
+          
+          if (error) throw error;
         },
         onError: async (error, step) => {
           // Log error
-          await supabase.from('workflow_execution_logs').insert({
-            workflow_id: workflow.id,
-            step: step,
-            status: 'error',
-            error: error.message,
-            execution_time: new Date().toISOString()
-          });
+          const { error: insertError } = await supabase
+            .from('workflow_execution_logs')
+            .insert({
+              workflow_id: workflow.id,
+              step: step,
+              status: 'error',
+              error: error.message,
+              execution_time: new Date().toISOString()
+            });
+
+          if (insertError) throw insertError;
 
           // Update error count using RPC function
           const { data } = await supabase
@@ -134,26 +142,30 @@ class WorkflowScheduler {
       // Handle completion
       if (result.workflow_status === 'completed') {
         // Log successful completion
-        await supabase.from('workflow_execution_logs').insert({
-          workflow_id: workflow.id,
-          status: 'completed',
-          result: result,
-          execution_time: new Date().toISOString()
-        });
+        const { error } = await supabase
+          .from('workflow_execution_logs')
+          .insert({
+            workflow_id: workflow.id,
+            status: 'completed',
+            result: result,
+            execution_time: new Date().toISOString()
+          });
+        
+        if (error) throw error;
       }
     } catch (error) {
       console.error(`Error executing workflow ${execution.workflow_id}:`, error);
       
       // Update error status using RPC function
-          const { data } = await supabase
-            .rpc('increment_error_count', { schedule_id: execution.id })
-            .single();
+      const { data } = await supabase
+        .rpc('increment_error_count', { schedule_id: execution.id })
+        .single();
 
-          const updatedCount = data as IncrementErrorCountResponse;
-          await supabase
-            .from('scheduled_workflows')
-            .update({
-              error_count: updatedCount.error_count,
+      const updatedCount = data as IncrementErrorCountResponse;
+      await supabase
+        .from('scheduled_workflows')
+        .update({
+          error_count: updatedCount.error_count,
           last_error: error instanceof Error ? error.message : 'Unknown error'
         })
         .eq('id', execution.id);

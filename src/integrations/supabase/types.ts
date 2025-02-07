@@ -101,8 +101,10 @@ export type Database = {
           id: string
           model_config: Json
           name: string
+          provider: string
           status: string | null
           system_prompt: string | null
+          type: string
           updated_at: string | null
         }
         Insert: {
@@ -112,8 +114,10 @@ export type Database = {
           id?: string
           model_config?: Json
           name: string
+          provider?: string
           status?: string | null
           system_prompt?: string | null
+          type?: string
           updated_at?: string | null
         }
         Update: {
@@ -123,8 +127,10 @@ export type Database = {
           id?: string
           model_config?: Json
           name?: string
+          provider?: string
           status?: string | null
           system_prompt?: string | null
+          type?: string
           updated_at?: string | null
         }
         Relationships: [
@@ -309,6 +315,50 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_execution_logs: {
+        Row: {
+          created_at: string | null
+          error: string | null
+          execution_time: string | null
+          id: string
+          metadata: Json | null
+          result: Json | null
+          status: Database["public"]["Enums"]["workflow_execution_status"]
+          step: number | null
+          workflow_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error?: string | null
+          execution_time?: string | null
+          id?: string
+          metadata?: Json | null
+          result?: Json | null
+          status: Database["public"]["Enums"]["workflow_execution_status"]
+          step?: number | null
+          workflow_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error?: string | null
+          execution_time?: string | null
+          id?: string
+          metadata?: Json | null
+          result?: Json | null
+          status?: Database["public"]["Enums"]["workflow_execution_status"]
+          step?: number | null
+          workflow_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_execution_logs_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
             referencedColumns: ["id"]
           },
         ]
@@ -599,6 +649,7 @@ export type Database = {
       }
     }
     Enums: {
+      workflow_execution_status: "pending" | "running" | "completed" | "error"
       workflow_schedule_status: "active" | "paused" | "error"
     }
     CompositeTypes: {
