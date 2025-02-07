@@ -23,41 +23,39 @@ export function createWorkflowGraph() {
       messages: {
         type: "list",
         value: [] as BaseMessage[],
-        merge: function(a: BaseMessage[] | undefined, b: BaseMessage[] | undefined) {
-          return [...(a || []), ...(b || [])];
-        }
+        merge: (curr: BaseMessage[], next: BaseMessage[]) => [...curr, ...next]
       },
       current_step: {
         type: "number",
         value: 0,
-        merge: function(a: number | undefined, b: number | undefined) {
-          return b ?? a ?? 0;
-        }
+        merge: (curr: number, next: number) => next
       },
       workflow_status: {
         type: "string",
         value: "running",
-        merge: function(a: string | undefined, b: string | undefined) {
-          return b ?? a ?? "running";
-        }
+        merge: (curr: string, next: string) => next
       },
     },
   });
 
-  // Define the processing node
+  // Define the processing node with proper sequence of operations
   const processStep = RunnableSequence.from([
-    async (state: WorkflowState) => {
-      const messages = state.messages;
-      const lastMessage = messages[messages.length - 1];
+    // First step: Process input state
+    (state: WorkflowState) => ({
+      state,
+      lastMessage: state.messages[state.messages.length - 1]
+    }),
+    // Second step: Generate response
+    async (input: { state: WorkflowState; lastMessage: BaseMessage }) => {
       const response = await model.invoke([
         new HumanMessage(
-          `Process step ${state.current_step}: ${lastMessage.content}`
+          `Process step ${input.state.current_step}: ${input.lastMessage.content}`
         ),
       ]);
       
       return {
-        messages: [...state.messages, response],
-        current_step: state.current_step + 1,
+        messages: [...input.state.messages, response],
+        current_step: input.state.current_step + 1,
         workflow_status: "running"
       } as WorkflowState;
     }
@@ -77,11 +75,12 @@ export async function executeWorkflow(
 ): Promise<WorkflowState> {
   const graph = createWorkflowGraph();
   
-  const initialState: WorkflowState = {
+  const initialState = {
     messages: [new HumanMessage(workflowSteps[0])],
     current_step: 0,
     workflow_status: "running"
-  };
+  } as const;
 
-  return await graph.invoke(initialState);
+  const result = await graph.invoke(initialState);
+  return result as WorkflowState;
 }
