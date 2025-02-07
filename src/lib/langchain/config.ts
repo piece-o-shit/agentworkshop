@@ -1,15 +1,13 @@
 
 import { OpenAI } from "@langchain/openai";
 import { 
-  StructuredToolInterface,
-  BaseTool
+  Tool,
+  StructuredToolInterface
 } from "@langchain/core/tools";
 import { 
-  AgentExecutor as BaseAgentExecutor
-} from "langchain/agents";
-import { 
+  AgentExecutor, 
   createOpenAIFunctionsAgent 
-} from "langchain/agents/openai";
+} from "@langchain/core/agents";
 import { 
   ChatPromptTemplate, 
   MessagesPlaceholder 
@@ -36,13 +34,13 @@ export function createModel(config: AgentConfig) {
   });
 }
 
-export function createToolFromConfig(toolConfig: any): BaseTool {
-  class CustomTool extends BaseTool {
+export function createToolFromConfig(toolConfig: any): Tool {
+  class CustomTool implements Tool {
     name = toolConfig.name;
     description = toolConfig.description;
     schema = toolConfig.config.schema;
 
-    async _call(input: Record<string, any>) {
+    async call(input: Record<string, any>) {
       return `Executed ${toolConfig.name} with input: ${JSON.stringify(input)}`;
     }
   }
@@ -71,14 +69,14 @@ export async function createAgentExecutor(
     prompt,
   });
 
-  return new BaseAgentExecutor({
+  return new AgentExecutor({
     agent,
     tools,
   });
 }
 
 // Create a runnable chain for the agent
-export function createAgentChain(executor: BaseAgentExecutor) {
+export function createAgentChain(executor: AgentExecutor) {
   return RunnableSequence.from([
     {
       input: new RunnablePassthrough(),
