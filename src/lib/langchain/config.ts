@@ -19,7 +19,7 @@ import {
 export interface AgentConfig {
   name: string;
   description?: string;
-  model_config: any; // Match the database schema
+  model_config: any;
   system_prompt?: string;
 }
 
@@ -29,16 +29,30 @@ export function createModel(config: AgentConfig) {
   return new OpenAI({
     temperature: modelConfig.temperature ?? 0.7,
     maxTokens: modelConfig.maxTokens,
-    modelName: modelConfig.model || "gpt-4o-mini",
+    modelName: modelConfig.model || "gpt-4",
+  });
+}
+
+export function createToolFromConfig(toolConfig: any): StructuredTool {
+  return new StructuredTool({
+    name: toolConfig.name,
+    description: toolConfig.description,
+    schema: toolConfig.config.schema,
+    func: async (input: Record<string, any>) => {
+      // Here we'll implement the actual tool functionality based on the type
+      // For now, we'll just return a mock response
+      return `Executed ${toolConfig.name} with input: ${JSON.stringify(input)}`;
+    },
   });
 }
 
 // Create a basic agent executor
 export async function createAgentExecutor(
   config: AgentConfig,
-  tools: StructuredTool[] = []
+  toolConfigs: any[] = []
 ) {
   const model = createModel(config);
+  const tools = toolConfigs.map(createToolFromConfig);
 
   const prompt = ChatPromptTemplate.fromMessages([
     ["system", config.system_prompt || "You are a helpful AI assistant."],

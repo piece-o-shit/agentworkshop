@@ -9,18 +9,33 @@ export function useAgentExecution(agentId: string) {
   const [isExecuting, setIsExecuting] = useState(false);
   const { toast } = useToast();
 
-  // Fetch agent configuration
+  // Fetch agent configuration and tools
   const { data: agent } = useQuery({
     queryKey: ["agent", agentId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: agentData, error: agentError } = await supabase
         .from("agents")
         .select("*")
         .eq("id", agentId)
         .maybeSingle();
 
-      if (error) throw error;
-      return data;
+      if (agentError) throw agentError;
+
+      // Fetch associated tools
+      const { data: toolData, error: toolError } = await supabase
+        .from("agent_tools")
+        .select(`
+          tool_id,
+          tools (*)
+        `)
+        .eq("agent_id", agentId);
+
+      if (toolError) throw toolError;
+
+      return {
+        ...agentData,
+        tools: toolData?.map((t) => t.tools) || [],
+      };
     },
   });
 
@@ -44,8 +59,8 @@ export function useAgentExecution(agentId: string) {
 
         if (execError) throw execError;
 
-        // Initialize agent executor
-        const executor = await createAgentExecutor(agent!);
+        // Initialize agent executor with tools
+        const executor = await createAgentExecutor(agent!, agent?.tools || []);
         const chain = createAgentChain(executor);
 
         // Execute the agent
