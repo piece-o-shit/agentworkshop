@@ -5,8 +5,6 @@ import {
   StructuredToolInterface
 } from "@langchain/core/tools";
 import { 
-  BaseMessageLike,
-  ChainValues,
   ChatPromptTemplate, 
   MessagesPlaceholder 
 } from "@langchain/core/prompts";
@@ -14,11 +12,6 @@ import {
   RunnableSequence,
   RunnablePassthrough 
 } from "@langchain/core/runnables";
-import {
-  AgentAction,
-  AgentFinish,
-  BaseMessage
-} from "@langchain/core/messages";
 
 export interface AgentConfig {
   name: string;
@@ -61,9 +54,13 @@ export function createToolFromConfig(toolConfig: any): Tool {
   return new CustomTool();
 }
 
+export interface AgentResponse {
+  output: string;
+}
+
 export interface AgentExecutor {
-  invoke(input: Record<string, any>): Promise<any>;
-  call(input: Record<string, any>): Promise<ChainValues>;
+  invoke(input: Record<string, any>): Promise<AgentResponse>;
+  call(input: Record<string, any>): Promise<AgentResponse>;
 }
 
 // Create a basic agent executor
@@ -83,11 +80,11 @@ export async function createAgentExecutor(
 
   // Create a simple agent that can use tools and follow a conversation
   const agent = {
-    invoke: async (input: Record<string, any>): Promise<any> => {
+    invoke: async (input: Record<string, any>): Promise<AgentResponse> => {
       const result = await model.invoke(input.input);
-      return result;
+      return { output: result };
     },
-    call: async (input: Record<string, any>): Promise<ChainValues> => {
+    call: async (input: Record<string, any>): Promise<AgentResponse> => {
       const result = await model.invoke(input.input);
       return { output: result };
     }

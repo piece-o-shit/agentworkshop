@@ -68,11 +68,11 @@ export function useAgentExecution(agentId: string) {
           input,
         });
 
-        // Update execution record
+        // Update execution record with stringified result
         await supabase
           .from("agent_executions")
           .update({
-            output: result,
+            output: { result: result.output },
             status: "completed",
             completed_at: new Date().toISOString(),
           })
