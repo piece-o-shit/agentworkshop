@@ -17,7 +17,7 @@ export function useAgentExecution(agentId: string) {
         .from("agents")
         .select("*")
         .eq("id", agentId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
@@ -35,6 +35,7 @@ export function useAgentExecution(agentId: string) {
           .from("agent_executions")
           .insert({
             agent_id: agentId,
+            user_id: (await supabase.auth.getUser()).data.user?.id,
             input,
             status: "running",
           })

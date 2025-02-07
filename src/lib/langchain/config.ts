@@ -4,7 +4,7 @@ import { StructuredTool } from "@langchain/core/tools";
 import { 
   AgentExecutor, 
   createOpenAIToolsAgent 
-} from "langchain/agents";
+} from "@langchain/openai"; // Updated import path
 import { 
   ChatPromptTemplate, 
   MessagesPlaceholder 
@@ -17,20 +17,17 @@ import {
 export interface AgentConfig {
   name: string;
   description?: string;
-  modelConfig: {
-    temperature?: number;
-    maxTokens?: number;
-    model: string;
-  };
-  systemPrompt?: string;
+  model_config: any; // Match the database schema
+  system_prompt?: string;
 }
 
-// Initialize OpenAI model with configuration
+// Initialize OpenAI model with configuration 
 export function createModel(config: AgentConfig) {
+  const modelConfig = config.model_config || {};
   return new OpenAI({
-    temperature: config.modelConfig.temperature ?? 0.7,
-    maxTokens: config.modelConfig.maxTokens,
-    modelName: config.modelConfig.model,
+    temperature: modelConfig.temperature ?? 0.7,
+    maxTokens: modelConfig.maxTokens,
+    modelName: modelConfig.model || "gpt-4o-mini",
   });
 }
 
@@ -42,7 +39,7 @@ export async function createAgentExecutor(
   const model = createModel(config);
 
   const prompt = ChatPromptTemplate.fromMessages([
-    ["system", config.systemPrompt || "You are a helpful AI assistant."],
+    ["system", config.system_prompt || "You are a helpful AI assistant."],
     new MessagesPlaceholder("chat_history"),
     ["human", "{input}"],
     new MessagesPlaceholder("agent_scratchpad"),
