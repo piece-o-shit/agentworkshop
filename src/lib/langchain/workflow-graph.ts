@@ -22,46 +22,38 @@ export function createWorkflowGraph() {
   const workflow = new StateGraph<WorkflowState>({
     channels: {
       messages: {
-        type: "list",
-        value: [] as BaseMessage[],
-        merge: function merge(a: BaseMessage[], b: BaseMessage[]) {
-          return [...(a || []), ...(b || [])];
-        }
+        type: "list" as const,
+        default: [] as BaseMessage[],
+        merge: (a: BaseMessage[], b: BaseMessage[]) => [...(a || []), ...(b || [])]
       },
       current_step: {
-        type: "number",
-        value: 0,
-        merge: function merge(a: number, b: number) {
-          return b;
-        }
+        type: "number" as const,
+        default: 0,
+        merge: (a: number, b: number) => b
       },
       workflow_status: {
-        type: "string",
-        value: "running",
-        merge: function merge(a: string, b: string) {
-          return b;
-        }
-      },
+        type: "string" as const,
+        default: "running",
+        merge: (a: string, b: string) => b
+      }
     },
   });
 
-  // Define the processing node with proper sequence of operations
+  // Define the processing node with simplified sequence
   const processStep = RunnableSequence.from([
-    {
-      input: (state: WorkflowState) => state,
-      response: async (input: { state: WorkflowState }) => {
-        const lastMessage = input.state.messages[input.state.messages.length - 1];
-        return await model.invoke([
-          new HumanMessage(`Process step ${input.state.current_step}: ${lastMessage.content}`)
-        ]);
-      }
-    },
-    (inputs: { input: WorkflowState; response: AIMessage }) => ({
-      messages: [...inputs.input.messages, inputs.response],
-      current_step: inputs.input.current_step + 1,
-      workflow_status: "running"
-    })
-  ]) as RunnableLike<WorkflowState, any>;
+    async (state: WorkflowState) => {
+      const lastMessage = state.messages[state.messages.length - 1];
+      const response = await model.invoke([
+        new HumanMessage(`Process step ${state.current_step}: ${lastMessage.content}`)
+      ]);
+      
+      return {
+        messages: [...state.messages, response],
+        current_step: state.current_step + 1,
+        workflow_status: "running"
+      } as WorkflowState;
+    }
+  ]) as RunnableLike<WorkflowState, WorkflowState>;
 
   // Add the processing node and set edges
   workflow.addNode("__start__", processStep);
@@ -77,11 +69,11 @@ export async function executeWorkflow(
 ): Promise<WorkflowState> {
   const graph = createWorkflowGraph();
   
-  const initialState = {
+  const initialState: WorkflowState = {
     messages: [new HumanMessage(workflowSteps[0])],
     current_step: 0,
     workflow_status: "running"
-  } satisfies WorkflowState;
+  };
 
   const result = await graph.invoke(initialState);
   return result as WorkflowState;
