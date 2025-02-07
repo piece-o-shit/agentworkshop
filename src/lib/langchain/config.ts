@@ -5,8 +5,8 @@ import {
   StructuredToolInterface
 } from "@langchain/core/tools";
 import { 
-  AgentExecutor as BaseAgentExecutor,
-  createOpenAIFunctionsAgent 
+  AgentExecutor, 
+  createStructuredChatAgent 
 } from "@langchain/core/agents";
 import { 
   ChatPromptTemplate, 
@@ -73,20 +73,20 @@ export async function createAgentExecutor(
     new MessagesPlaceholder("agent_scratchpad"),
   ]);
 
-  const agent = await createOpenAIFunctionsAgent({
+  const agent = await createStructuredChatAgent({
     llm: model,
     tools,
     prompt,
   });
 
-  return new BaseAgentExecutor({
+  return new AgentExecutor({
     agent,
     tools,
   });
 }
 
 // Create a runnable chain for the agent
-export function createAgentChain(executor: BaseAgentExecutor) {
+export function createAgentChain(executor: AgentExecutor) {
   return RunnableSequence.from([
     {
       input: new RunnablePassthrough(),
