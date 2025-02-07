@@ -1,14 +1,16 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PlusCircle, Bot, Workflow, Settings, LogOut } from "lucide-react";
+import { PlusCircle, Bot, Workflow, Settings, LogOut, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
+import { useRole } from "@/hooks/use-role";
 
 const Index = () => {
   const { signOut } = useAuth();
   const { toast } = useToast();
+  const { isAdmin } = useRole();
 
   const handleLogout = async () => {
     try {
@@ -35,6 +37,14 @@ const Index = () => {
             <span className="text-xl font-semibold">AgentFlow</span>
           </div>
           <div className="flex items-center space-x-4">
+            {isAdmin && (
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/users">
+                  <Users className="w-4 h-4 mr-2" />
+                  Users
+                </Link>
+              </Button>
+            )}
             <Button variant="ghost" size="sm">
               <Settings className="w-4 h-4 mr-2" />
               Settings
@@ -110,4 +120,3 @@ const Index = () => {
 };
 
 export default Index;
-

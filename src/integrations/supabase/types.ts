@@ -319,6 +319,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       workflow_execution_logs: {
         Row: {
           created_at: string | null
@@ -482,6 +503,13 @@ export type Database = {
       has_exceeded_max_retries: {
         Args: {
           schedule_id: string
+        }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
       }
@@ -649,6 +677,7 @@ export type Database = {
       }
     }
     Enums: {
+      app_role: "admin" | "user"
       workflow_execution_status: "pending" | "running" | "completed" | "error"
       workflow_schedule_status: "active" | "paused" | "error"
     }
