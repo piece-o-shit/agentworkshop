@@ -60,16 +60,32 @@ const Users = () => {
     try {
       if (isCurrentlyAdmin) {
         // Remove admin role
-        await supabase
+        const { error: deleteError } = await supabase
           .from("user_roles")
           .delete()
           .eq("user_id", userId)
           .eq("role", "admin");
+
+        if (deleteError) throw deleteError;
       } else {
-        // Add admin role
-        await supabase
+        // Check if the role already exists
+        const { data: existingRole, error: checkError } = await supabase
           .from("user_roles")
-          .insert({ user_id: userId, role: "admin" });
+          .select("id")
+          .eq("user_id", userId)
+          .eq("role", "admin")
+          .single();
+
+        if (checkError && checkError.code !== "PGRST116") throw checkError; // PGRST116 means no rows returned
+
+        // Only insert if the role doesn't exist
+        if (!existingRole) {
+          const { error: insertError } = await supabase
+            .from("user_roles")
+            .insert({ user_id: userId, role: "admin" });
+
+          if (insertError) throw insertError;
+        }
       }
 
       toast({
@@ -78,6 +94,7 @@ const Users = () => {
       });
       refetch();
     } catch (error) {
+      console.error("Error updating role:", error);
       toast({
         title: "Error",
         description: "Failed to update user role",
@@ -130,7 +147,7 @@ const Users = () => {
               <TableCell>
                 <Switch
                   checked={user.roles.includes("admin")}
-                  onCheckedChange={(checked) =>
+                  onCheckedChange={() =>
                     toggleAdminRole(user.id, user.roles.includes("admin"))
                   }
                 />
