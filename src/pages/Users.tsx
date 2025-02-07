@@ -15,6 +15,16 @@ import { Switch } from "@/components/ui/switch";
 import { useRole } from "@/hooks/use-role";
 import { Navigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useState } from "react";
+import { Label } from "@/components/ui/label";
+import { format } from "date-fns";
 
 interface User {
   id: string;
@@ -27,6 +37,7 @@ interface User {
 const Users = () => {
   const { toast } = useToast();
   const { isAdmin, isLoading: roleLoading } = useRole();
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const { data: users = [], isLoading, refetch } = useQuery({
     queryKey: ["users"],
@@ -153,7 +164,11 @@ const Users = () => {
                 />
               </TableCell>
               <TableCell>
-                <Button variant="ghost" size="sm">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setSelectedUser(user)}
+                >
                   View Details
                 </Button>
               </TableCell>
@@ -161,8 +176,56 @@ const Users = () => {
           ))}
         </TableBody>
       </Table>
+
+      <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>
+              Detailed information about the user
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedUser && (
+            <div className="grid gap-4 py-4">
+              <div className="flex items-center justify-center mb-4">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={selectedUser.avatar_url || undefined} />
+                  <AvatarFallback className="text-lg">
+                    {selectedUser.full_name?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Name</Label>
+                <div className="col-span-3">
+                  {selectedUser.full_name}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Roles</Label>
+                <div className="col-span-3">
+                  {selectedUser.roles.length > 0 
+                    ? selectedUser.roles.join(", ") 
+                    : "No special roles"}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Last Updated</Label>
+                <div className="col-span-3">
+                  {format(new Date(selectedUser.updated_at), "PPpp")}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 export default Users;
+
