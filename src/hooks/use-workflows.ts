@@ -17,15 +17,26 @@ export function useWorkflows() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as Workflow[];
+      
+      // Transform the data to match our Workflow type
+      return (data as any[]).map((workflow) => ({
+        ...workflow,
+        steps: workflow.steps as any[] || [],
+      })) as Workflow[];
     },
   });
 
   const createWorkflow = useMutation({
-    mutationFn: async (workflow: Partial<Workflow>) => {
+    mutationFn: async (workflow: Omit<Workflow, "id" | "created_at" | "updated_at">) => {
       const { data, error } = await supabase
         .from("workflows")
-        .insert(workflow)
+        .insert({
+          name: workflow.name,
+          description: workflow.description,
+          steps: workflow.steps,
+          config: workflow.config || {},
+          status: workflow.status,
+        })
         .select()
         .single();
 
@@ -50,11 +61,17 @@ export function useWorkflows() {
   });
 
   const updateWorkflow = useMutation({
-    mutationFn: async (workflow: Partial<Workflow>) => {
+    mutationFn: async ({ id, ...workflow }: Partial<Workflow> & { id: string }) => {
       const { data, error } = await supabase
         .from("workflows")
-        .update(workflow)
-        .eq("id", workflow.id)
+        .update({
+          name: workflow.name,
+          description: workflow.description,
+          steps: workflow.steps,
+          config: workflow.config,
+          status: workflow.status,
+        })
+        .eq("id", id)
         .select()
         .single();
 
