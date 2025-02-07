@@ -72,7 +72,7 @@ export function useAgentExecution(agentId: string) {
         await supabase
           .from("agent_executions")
           .update({
-            output: { result: result.output },
+            output: result,
             status: "completed",
             completed_at: new Date().toISOString(),
           })
