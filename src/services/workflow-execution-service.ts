@@ -12,7 +12,7 @@ export async function logWorkflowExecution(log: WorkflowExecutionLog) {
       result: log.result ? JSON.parse(JSON.stringify(log.result)) as Json : null,
       error: log.error,
       execution_time: log.execution_time,
-      step: log.step ? log.step.id : null
+      step: typeof log.step === 'object' ? log.step.id : log.step
     });
 
   if (error) throw error;

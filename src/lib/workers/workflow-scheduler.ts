@@ -2,7 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { executeWorkflow } from '@/lib/langchain/workflow-graph';
 import { PendingExecution, WorkflowExecutionConfig } from '@/types/workflow-execution';
-import { Workflow } from '@/types/workflow';
+import { Workflow, WorkflowStep } from '@/types/workflow';
 import { logWorkflowExecution, updateWorkflowError } from '@/services/workflow-execution-service';
 import { Json } from '@/integrations/supabase/types';
 
@@ -47,12 +47,20 @@ export class WorkflowScheduler {
 
   private async executeWorkflow(execution: PendingExecution) {
     try {
+      const { data: workflowData, error: workflowError } = await supabase
+        .from('workflows')
+        .select('*')
+        .eq('id', execution.workflow_id)
+        .single();
+
+      if (workflowError) throw workflowError;
+
       const workflow: Workflow = {
         id: execution.workflow_id,
         name: execution.name,
         description: "Scheduled workflow execution",
         created_by: "scheduler",
-        steps: execution.steps,
+        steps: workflowData.steps as Json as WorkflowStep[],
         status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -100,7 +108,7 @@ export class WorkflowScheduler {
         await logWorkflowExecution({
           workflow_id: workflow.id,
           status: 'completed',
-          result: JSON.parse(JSON.stringify(result)) as Json,
+          result: JSON.parse(JSON.stringify(result.output)) as Json,
           execution_time: new Date().toISOString()
         });
       }
