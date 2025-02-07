@@ -1,33 +1,38 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Agent } from '@/pages/Agents';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export function useAgents() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: agents, isLoading } = useQuery({
-    queryKey: ['agents'],
+    queryKey: ['agents', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('agents')
-        .select('*');
+        .select('*')
+        .eq('created_by', user?.id);
       if (error) throw error;
       return data as Agent[];
     },
+    enabled: !!user,
   });
 
   const createAgent = useMutation({
     mutationFn: async (newAgent: Omit<Agent, 'id'>) => {
       const { data, error } = await supabase
         .from('agents')
-        .insert(newAgent)
+        .insert({ ...newAgent, created_by: user?.id })
         .single();
       if (error) throw error;
       return data as Agent;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      queryClient.invalidateQueries({ queryKey: ['agents', user?.id] });
     },
   });
 
@@ -37,12 +42,13 @@ export function useAgents() {
         .from('agents')
         .update(updatedAgent)
         .eq('id', updatedAgent.id)
+        .eq('created_by', user?.id)
         .single();
       if (error) throw error;
       return data as Agent;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      queryClient.invalidateQueries({ queryKey: ['agents', user?.id] });
     },
   });
 
@@ -51,11 +57,12 @@ export function useAgents() {
       const { error } = await supabase
         .from('agents')
         .delete()
-        .eq('id', agentId);
+        .eq('id', agentId)
+        .eq('created_by', user?.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      queryClient.invalidateQueries({ queryKey: ['agents', user?.id] });
     },
   });
 
