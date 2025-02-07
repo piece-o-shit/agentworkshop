@@ -1,7 +1,7 @@
 
 import { ChatOpenAI } from "@langchain/openai";
 import { StateGraph, END } from "@langchain/langgraph";
-import { BaseMessage, HumanMessage } from "@langchain/core/messages";
+import { BaseMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
 import { RunnableSequence } from "@langchain/core/runnables";
 
 interface WorkflowState {
@@ -19,37 +19,42 @@ const model = new ChatOpenAI({
 // Create workflow execution graph
 export function createWorkflowGraph() {
   // Initialize the graph
-  const workflow = new StateGraph<WorkflowState>({
+  const workflow = new StateGraph({
     channels: {
-      messages: { value: [] as BaseMessage[] },
-      current_step: { value: 0 },
-      workflow_status: { value: "running" },
+      messages: [],
+      current_step: 0,
+      workflow_status: "running",
     },
   });
 
   // Define the processing node
   const processStep = RunnableSequence.from([
+    (state) => state,
     async (state: WorkflowState) => {
       const { messages, current_step } = state;
       const lastMessage = messages[messages.length - 1];
-      // Process the current step using the model
       const response = await model.invoke([
         new HumanMessage(
           `Process step ${current_step}: ${lastMessage.content}`
         ),
       ]);
-      return response;
+      
+      return {
+        messages: [...state.messages, response],
+        current_step: state.current_step + 1,
+        workflow_status: "running",
+      };
     },
   ]);
 
   // Add the processing node to the graph
-  workflow.addNode("process_step", processStep);
+  workflow.addNode("process", processStep);
 
   // Add edges
-  workflow.addEdge("process_step", END);
+  workflow.addEdge("process", END);
 
   // Set the entry point
-  workflow.setEntryPoint("process_step");
+  workflow.setEntryPoint("process");
 
   // Compile the graph
   return workflow.compile();
@@ -61,13 +66,13 @@ export async function executeWorkflow(
 ): Promise<WorkflowState> {
   const graph = createWorkflowGraph();
   
-  const initialState: WorkflowState = {
+  const config = {
     messages: [new HumanMessage(workflowSteps[0])],
     current_step: 0,
     workflow_status: "running",
   };
 
   // Execute the workflow
-  const result = await graph.invoke(initialState);
-  return result;
+  const result = await graph.invoke(config);
+  return result as WorkflowState;
 }

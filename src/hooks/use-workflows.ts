@@ -21,7 +21,7 @@ export function useWorkflows() {
       // Transform the data to match our Workflow type
       return (data as any[]).map((workflow) => ({
         ...workflow,
-        steps: workflow.steps as any[] || [],
+        steps: workflow.steps || [],
       })) as Workflow[];
     },
   });
@@ -33,7 +33,7 @@ export function useWorkflows() {
         .insert({
           name: workflow.name,
           description: workflow.description,
-          steps: workflow.steps,
+          steps: JSON.stringify(workflow.steps),
           config: workflow.config || {},
           status: workflow.status,
         })
@@ -67,7 +67,7 @@ export function useWorkflows() {
         .update({
           name: workflow.name,
           description: workflow.description,
-          steps: workflow.steps,
+          steps: workflow.steps ? JSON.stringify(workflow.steps) : undefined,
           config: workflow.config,
           status: workflow.status,
         })
