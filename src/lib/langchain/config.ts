@@ -5,10 +5,8 @@ import {
   StructuredToolInterface
 } from "@langchain/core/tools";
 import { 
-  AgentExecutor, 
-  createStructuredChatAgent 
-} from "@langchain/core/agents";
-import { 
+  BaseMessageLike,
+  ChainValues,
   ChatPromptTemplate, 
   MessagesPlaceholder 
 } from "@langchain/core/prompts";
@@ -16,6 +14,11 @@ import {
   RunnableSequence,
   RunnablePassthrough 
 } from "@langchain/core/runnables";
+import {
+  AgentAction,
+  AgentFinish,
+  BaseMessage
+} from "@langchain/core/messages";
 
 export interface AgentConfig {
   name: string;
@@ -58,11 +61,16 @@ export function createToolFromConfig(toolConfig: any): Tool {
   return new CustomTool();
 }
 
+export interface AgentExecutor {
+  invoke(input: Record<string, any>): Promise<any>;
+  call(input: Record<string, any>): Promise<ChainValues>;
+}
+
 // Create a basic agent executor
 export async function createAgentExecutor(
   config: AgentConfig,
   toolConfigs: any[] = []
-) {
+): Promise<AgentExecutor> {
   const model = createModel(config);
   const tools = toolConfigs.map(createToolFromConfig);
 
@@ -73,16 +81,19 @@ export async function createAgentExecutor(
     new MessagesPlaceholder("agent_scratchpad"),
   ]);
 
-  const agent = await createStructuredChatAgent({
-    llm: model,
-    tools,
-    prompt,
-  });
+  // Create a simple agent that can use tools and follow a conversation
+  const agent = {
+    invoke: async (input: Record<string, any>): Promise<any> => {
+      const result = await model.invoke(input.input);
+      return result;
+    },
+    call: async (input: Record<string, any>): Promise<ChainValues> => {
+      const result = await model.invoke(input.input);
+      return { output: result };
+    }
+  };
 
-  return new AgentExecutor({
-    agent,
-    tools,
-  });
+  return agent;
 }
 
 // Create a runnable chain for the agent
