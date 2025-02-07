@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -63,7 +64,12 @@ export function WorkflowBuilder({
     defaultValues: {
       name: initialValues?.name || "",
       description: initialValues?.description || "",
-      steps: steps,
+      steps: steps.map(step => ({
+        id: step.id,
+        name: step.name,
+        action: step.action,
+        parameters: step.parameters
+      })),
     },
   });
 

@@ -19,11 +19,15 @@ const model = new ChatOpenAI({
 // Create workflow execution graph
 export function createWorkflowGraph() {
   // Initialize the graph with state schema
-  const workflow = new StateGraph({
+  const workflow = new StateGraph<{
+    messages: BaseMessage[];
+    current_step: number;
+    workflow_status: string;
+  }>({
     channels: {
-      messages: { value: [] as BaseMessage[], type: "list" },
-      current_step: { value: 0, type: "number" },
-      workflow_status: { value: "running", type: "string" },
+      messages: { type: "list", value: [] as BaseMessage[] },
+      current_step: { type: "number", value: 0 },
+      workflow_status: { type: "string", value: "running" },
     },
   });
 
