@@ -7,7 +7,7 @@ import {
 import { 
   AgentExecutor as BaseAgentExecutor,
   createOpenAIFunctionsAgent 
-} from "langchain/agents";
+} from "@langchain/core/agents";
 import { 
   ChatPromptTemplate, 
   MessagesPlaceholder 
@@ -41,7 +41,10 @@ export function createToolFromConfig(toolConfig: any): Tool {
     schema = toolConfig.config.schema;
     returnDirect = false;
     verbose = false;
-    lc_namespace = ['custom'];
+
+    get lc_namespace() {
+      return ['custom'];
+    }
 
     constructor() {
       super();
