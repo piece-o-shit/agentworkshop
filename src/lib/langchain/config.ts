@@ -1,12 +1,15 @@
 
 import { OpenAI } from "@langchain/openai";
-import { StructuredTool } from "@langchain/core/tools";
 import { 
-  AgentExecutor 
-} from "@langchain/core/agents";
+  StructuredToolInterface,
+  BaseTool
+} from "@langchain/core/tools";
 import { 
-  createOpenAIToolsAgent 
-} from "@langchain/openai/agents";
+  AgentExecutor as BaseAgentExecutor
+} from "langchain/agents";
+import { 
+  createOpenAIFunctionsAgent 
+} from "langchain/agents/openai";
 import { 
   ChatPromptTemplate, 
   MessagesPlaceholder 
@@ -33,17 +36,18 @@ export function createModel(config: AgentConfig) {
   });
 }
 
-export function createToolFromConfig(toolConfig: any): StructuredTool {
-  return new StructuredTool({
-    name: toolConfig.name,
-    description: toolConfig.description,
-    schema: toolConfig.config.schema,
-    func: async (input: Record<string, any>) => {
-      // Here we'll implement the actual tool functionality based on the type
-      // For now, we'll just return a mock response
+export function createToolFromConfig(toolConfig: any): BaseTool {
+  class CustomTool extends BaseTool {
+    name = toolConfig.name;
+    description = toolConfig.description;
+    schema = toolConfig.config.schema;
+
+    async _call(input: Record<string, any>) {
       return `Executed ${toolConfig.name} with input: ${JSON.stringify(input)}`;
-    },
-  });
+    }
+  }
+
+  return new CustomTool();
 }
 
 // Create a basic agent executor
@@ -61,20 +65,20 @@ export async function createAgentExecutor(
     new MessagesPlaceholder("agent_scratchpad"),
   ]);
 
-  const agent = await createOpenAIToolsAgent({
+  const agent = await createOpenAIFunctionsAgent({
     llm: model,
     tools,
     prompt,
   });
 
-  return new AgentExecutor({
+  return new BaseAgentExecutor({
     agent,
     tools,
   });
 }
 
 // Create a runnable chain for the agent
-export function createAgentChain(executor: AgentExecutor) {
+export function createAgentChain(executor: BaseAgentExecutor) {
   return RunnableSequence.from([
     {
       input: new RunnablePassthrough(),
