@@ -79,23 +79,15 @@ const Users = () => {
 
         if (deleteError) throw deleteError;
       } else {
-        // Check if the role exists
-        const { data: existingRoles, error: checkError } = await supabase
+        // Using upsert instead of insert to handle potential race conditions
+        const { error: upsertError } = await supabase
           .from("user_roles")
-          .select("*")
-          .eq("user_id", userId)
-          .eq("role", "admin");
+          .upsert(
+            { user_id: userId, role: "admin" },
+            { onConflict: 'user_id,role' }
+          );
 
-        if (checkError) throw checkError;
-
-        // Only insert if the role doesn't exist
-        if (!existingRoles?.length) {
-          const { error: insertError } = await supabase
-            .from("user_roles")
-            .insert({ user_id: userId, role: "admin" });
-
-          if (insertError) throw insertError;
-        }
+        if (upsertError) throw upsertError;
       }
 
       toast({
