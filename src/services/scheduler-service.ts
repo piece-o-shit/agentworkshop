@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { ScheduledWorkflow, CreateScheduleInput, ScheduleStatus } from '@/types/scheduler';
+import { ScheduledWorkflow, CreateScheduleInput } from '@/types/scheduler';
+import { Json } from '@/integrations/supabase/types';
 
 export async function fetchScheduledWorkflows(): Promise<ScheduledWorkflow[]> {
   const { data, error } = await supabase
@@ -15,13 +16,16 @@ export async function fetchScheduledWorkflows(): Promise<ScheduledWorkflow[]> {
 export async function createSchedule(input: CreateScheduleInput) {
   const { data, error } = await supabase
     .from('scheduled_workflows')
-    .insert([{
-      ...input,
+    .insert({
+      workflow_id: input.workflow_id,
+      name: input.name,
+      description: input.description,
+      schedule: input.schedule,
       status: 'active',
       error_count: 0,
-      config: input.config || {},
-      metadata: input.metadata || {}
-    }])
+      config: input.config ? JSON.parse(JSON.stringify(input.config)) as Json : {},
+      metadata: input.metadata ? JSON.parse(JSON.stringify(input.metadata)) as Json : {}
+    })
     .select()
     .single();
 
@@ -29,7 +33,7 @@ export async function createSchedule(input: CreateScheduleInput) {
   return data;
 }
 
-export async function updateScheduleStatus(id: string, status: ScheduleStatus) {
+export async function updateScheduleStatus(id: string, status: 'active' | 'paused' | 'error') {
   const { data, error } = await supabase
     .from('scheduled_workflows')
     .update({ status })

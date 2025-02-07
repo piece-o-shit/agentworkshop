@@ -60,11 +60,12 @@ export class WorkflowScheduler {
         name: execution.name,
         description: "Scheduled workflow execution",
         created_by: "scheduler",
-        steps: workflowData.steps as Json as WorkflowStep[],
+        // Convert JSON to typed WorkflowStep[] safely
+        steps: JSON.parse(JSON.stringify(workflowData.steps)) as WorkflowStep[],
         status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        config: execution.config as Record<string, unknown>
+        config: JSON.parse(JSON.stringify(execution.config)) as Record<string, unknown>
       };
 
       // Update last_run time
@@ -82,7 +83,7 @@ export class WorkflowScheduler {
         onStepComplete: async (step, result) => {
           await logWorkflowExecution({
             workflow_id: workflow.id,
-            step,
+            step: step.id,
             status: 'completed',
             result: JSON.parse(JSON.stringify(result)) as Json,
             execution_time: new Date().toISOString()
@@ -91,7 +92,7 @@ export class WorkflowScheduler {
         onError: async (error, step) => {
           await logWorkflowExecution({
             workflow_id: workflow.id,
-            step,
+            step: step ? step.id : undefined,
             status: 'error',
             error: error.message,
             execution_time: new Date().toISOString()
@@ -108,7 +109,7 @@ export class WorkflowScheduler {
         await logWorkflowExecution({
           workflow_id: workflow.id,
           status: 'completed',
-          result: JSON.parse(JSON.stringify(result.output)) as Json,
+          result: JSON.parse(JSON.stringify(result)) as Json,
           execution_time: new Date().toISOString()
         });
       }
