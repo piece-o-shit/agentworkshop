@@ -2,9 +2,11 @@
 import { OpenAI } from "@langchain/openai";
 import { StructuredTool } from "@langchain/core/tools";
 import { 
-  AgentExecutor, 
+  AgentExecutor 
+} from "@langchain/core/agents";
+import { 
   createOpenAIToolsAgent 
-} from "@langchain/openai"; // Updated import path
+} from "@langchain/openai/agents";
 import { 
   ChatPromptTemplate, 
   MessagesPlaceholder 
