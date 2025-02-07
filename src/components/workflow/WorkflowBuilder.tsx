@@ -64,11 +64,11 @@ export function WorkflowBuilder({
     defaultValues: {
       name: initialValues?.name || "",
       description: initialValues?.description || "",
-      steps: steps.map(step => ({
-        id: step.id,
-        name: step.name,
-        action: step.action,
-        parameters: step.parameters
+      steps: (initialValues?.steps || [defaultStep]).map(step => ({
+        id: step.id || uuidv4(),
+        name: step.name || "",
+        action: step.action || "",
+        parameters: step.parameters || {},
       })),
     },
   });
