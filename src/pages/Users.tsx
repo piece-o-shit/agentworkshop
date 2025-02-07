@@ -79,18 +79,17 @@ const Users = () => {
 
         if (deleteError) throw deleteError;
       } else {
-        // Check if the role already exists
-        const { data: existingRole, error: checkError } = await supabase
+        // Check if the role exists
+        const { data: existingRoles, error: checkError } = await supabase
           .from("user_roles")
-          .select("id")
+          .select("*")
           .eq("user_id", userId)
-          .eq("role", "admin")
-          .single();
+          .eq("role", "admin");
 
-        if (checkError && checkError.code !== "PGRST116") throw checkError; // PGRST116 means no rows returned
+        if (checkError) throw checkError;
 
         // Only insert if the role doesn't exist
-        if (!existingRole) {
+        if (!existingRoles?.length) {
           const { error: insertError } = await supabase
             .from("user_roles")
             .insert({ user_id: userId, role: "admin" });
