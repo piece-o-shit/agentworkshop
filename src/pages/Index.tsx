@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PlusCircle, Robot, Workflow, Settings } from "lucide-react";
+import { PlusCircle, Bot, Workflow, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Index = () => {
@@ -10,7 +10,7 @@ const Index = () => {
       <nav className="glass-panel fixed top-0 w-full z-50 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Robot className="w-8 h-8 text-primary" />
+            <Bot className="w-8 h-8 text-primary" />
             <span className="text-xl font-semibold">AgentFlow</span>
           </div>
           <div className="flex items-center space-x-4">
@@ -32,7 +32,7 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <Card className="p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center mb-4">
-                <Robot className="w-6 h-6 text-primary mr-2" />
+                <Bot className="w-6 h-6 text-primary mr-2" />
                 <h2 className="text-xl font-semibold">Agents</h2>
               </div>
               <p className="text-muted-foreground mb-4">
