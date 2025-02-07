@@ -1,10 +1,31 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PlusCircle, Bot, Workflow, Settings } from "lucide-react";
+import { PlusCircle, Bot, Workflow, Settings, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 
 const Index = () => {
+  const { signOut } = useAuth();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out of your account",
+      });
+    } catch (error) {
+      toast({
+        title: "Error logging out",
+        description: "There was a problem logging out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary">
       <nav className="glass-panel fixed top-0 w-full z-50 px-6 py-4">
@@ -17,6 +38,10 @@ const Index = () => {
             <Button variant="ghost" size="sm">
               <Settings className="w-4 h-4 mr-2" />
               Settings
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
             </Button>
           </div>
         </div>
@@ -85,3 +110,4 @@ const Index = () => {
 };
 
 export default Index;
+
