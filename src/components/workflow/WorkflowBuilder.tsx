@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -27,7 +26,7 @@ const workflowSchema = z.object({
   description: z.string().optional(),
   steps: z.array(
     z.object({
-      id: z.string().min(1),
+      id: z.string().min(1, "ID is required"),
       name: z.string().min(1, "Step name is required"),
       action: z.string().min(1, "Action is required"),
       parameters: z.record(z.any()),
