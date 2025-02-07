@@ -48,13 +48,13 @@ export function createWorkflowGraph() {
   ]);
 
   // Add the processing node
-  workflow.addNode("__process__", processStep);
+  workflow.addNode("__start__", processStep);
 
   // Add edges
-  workflow.addEdge("__process__", END);
+  workflow.addEdge("__start__", END);
 
   // Set the entry point
-  workflow.setEntryPoint("__process__");
+  workflow.setEntryPoint("__start__");
 
   // Compile the graph
   return workflow.compile();

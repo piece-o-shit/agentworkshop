@@ -27,7 +27,7 @@ const workflowSchema = z.object({
   description: z.string().optional(),
   steps: z.array(
     z.object({
-      id: z.string(),
+      id: z.string().min(1),
       name: z.string().min(1, "Step name is required"),
       action: z.string().min(1, "Action is required"),
       parameters: z.record(z.any()),
@@ -48,7 +48,7 @@ export function WorkflowBuilder({
   initialValues,
   isLoading = false,
 }: WorkflowBuilderProps) {
-  const initialStep: WorkflowStep = {
+  const defaultStep: WorkflowStep = {
     id: uuidv4(),
     name: "",
     action: "",
@@ -56,7 +56,7 @@ export function WorkflowBuilder({
   };
 
   const [steps, setSteps] = useState<WorkflowStep[]>(
-    initialValues?.steps || [initialStep]
+    initialValues?.steps || [defaultStep]
   );
 
   const form = useForm<WorkflowFormValues>({
