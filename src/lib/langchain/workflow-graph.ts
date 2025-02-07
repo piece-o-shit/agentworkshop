@@ -20,23 +20,20 @@ const model = new ChatOpenAI({
 export function createWorkflowGraph() {
   const workflow = new StateGraph<WorkflowState>({
     channels: {
-      messages: { 
-        type: "list", 
+      messages: {
+        type: "list",
         value: [] as BaseMessage[],
-        // Add merge function for list type
         merge: (a: BaseMessage[], b: BaseMessage[]) => [...a, ...b],
       },
-      current_step: { 
-        type: "number", 
+      current_step: {
+        type: "number",
         value: 0,
-        // Add merge function for number type
-        merge: (_: number, b: number) => b,
+        merge: (a: number, b: number) => b,
       },
-      workflow_status: { 
-        type: "string", 
+      workflow_status: {
+        type: "string",
         value: "running",
-        // Add merge function for string type
-        merge: (_: string, b: string) => b,
+        merge: (a: string, b: string) => b,
       },
     },
   });
@@ -56,14 +53,14 @@ export function createWorkflowGraph() {
         messages: [...messages, response],
         current_step: state.current_step + 1,
         workflow_status: "running",
-      } as WorkflowState;
+      };
     },
   ]);
 
   // Add the processing node and set edges
-  workflow.addNode("process", processStep);
-  workflow.setEntryPoint("process");
-  workflow.addEdge("process", END);
+  workflow.addNode("__start__", processStep);
+  workflow.setEntryPoint("__start__");
+  workflow.addEdge("__start__", END);
 
   return workflow.compile();
 }
@@ -74,11 +71,11 @@ export async function executeWorkflow(
 ): Promise<WorkflowState> {
   const graph = createWorkflowGraph();
   
-  const initialState: WorkflowState = {
+  const initialState = {
     messages: [new HumanMessage(workflowSteps[0])],
     current_step: 0,
     workflow_status: "running",
-  };
+  } as const;
 
   const result = await graph.invoke(initialState);
   return result as WorkflowState;
