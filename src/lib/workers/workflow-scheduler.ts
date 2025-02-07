@@ -55,16 +55,19 @@ export class WorkflowScheduler {
 
       if (workflowError) throw workflowError;
 
+      const parsedSteps = JSON.parse(JSON.stringify(workflowData.steps)) as WorkflowStep[];
+      const parsedConfig = JSON.parse(JSON.stringify(execution.config)) as Record<string, unknown>;
+
       const workflow: Workflow = {
         id: execution.workflow_id,
         name: execution.name,
         description: "Scheduled workflow execution",
         created_by: "scheduler",
-        steps: workflowData.steps as Json as WorkflowStep[],
+        steps: parsedSteps,
         status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        config: execution.config as Record<string, unknown>
+        config: parsedConfig
       };
 
       // Update last_run time
@@ -79,19 +82,19 @@ export class WorkflowScheduler {
 
       const config: WorkflowExecutionConfig = {
         ...(execution.config as WorkflowExecutionConfig),
-        onStepComplete: async (step, result) => {
+        onStepComplete: async (stepIndex, result) => {
           await logWorkflowExecution({
             workflow_id: workflow.id,
-            step: step,
+            step: stepIndex,
             status: 'completed',
             result: JSON.parse(JSON.stringify(result)) as Json,
             execution_time: new Date().toISOString()
           });
         },
-        onError: async (error, step) => {
+        onError: async (error, stepIndex) => {
           await logWorkflowExecution({
             workflow_id: workflow.id,
-            step: step,
+            step: stepIndex,
             status: 'error',
             error: error.message,
             execution_time: new Date().toISOString()
@@ -108,7 +111,7 @@ export class WorkflowScheduler {
         await logWorkflowExecution({
           workflow_id: workflow.id,
           status: 'completed',
-          result: JSON.parse(JSON.stringify(result)) as Json,
+          result: JSON.parse(JSON.stringify(result.output)) as Json,
           execution_time: new Date().toISOString()
         });
       }

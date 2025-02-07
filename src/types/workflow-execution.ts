@@ -12,8 +12,8 @@ export interface WorkflowExecutionConfig {
   maxRetries?: number;
   timeout?: number;
   notifications?: boolean;
-  onStepComplete?: (step: string | number, result: unknown) => Promise<void>;
-  onError?: (error: Error, step?: string | number) => Promise<void>;
+  onStepComplete?: (step: number, result: unknown) => Promise<void>;
+  onError?: (error: Error, step?: number) => Promise<void>;
 }
 
 export interface PendingExecution {
@@ -27,7 +27,7 @@ export interface PendingExecution {
 
 export interface WorkflowExecutionLog {
   workflow_id: string;
-  step?: string | number;
+  step?: number;
   status: 'error' | 'pending' | 'running' | 'completed';
   result?: Json;
   error?: string;
