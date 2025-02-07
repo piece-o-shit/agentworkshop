@@ -8,7 +8,7 @@ import { RunnableLike } from "@langchain/core/runnables";
 interface WorkflowState {
   messages: BaseMessage[];
   current_step: number;
-  workflow_status: string;
+  workflow_status: 'running' | 'completed' | 'error';
 }
 
 // Initialize LLM
@@ -22,54 +22,50 @@ export function createWorkflowGraph() {
   const workflow = new StateGraph<WorkflowState>({
     channels: {
       messages: {
-        type: "list" as const,
         default: () => [] as BaseMessage[],
-        merge: (a: BaseMessage[], b: BaseMessage[]) => [...(a || []), ...(b || [])]
+        reducer: (messages: BaseMessage[], newMessages: BaseMessage[]) => 
+          [...messages, ...newMessages]
       },
       current_step: {
-        type: "number" as const,
         default: () => 0,
-        merge: (a: number, b: number) => b
+        reducer: (_: number, newStep: number) => newStep
       },
       workflow_status: {
-        type: "string" as const,
-        default: () => "running",
-        merge: (a: string, b: string) => b
+        default: () => 'running' as const,
+        reducer: (_: string, newStatus: string) => newStatus
       }
     },
   });
 
-  // Define the processing node with two-step sequence
+  // Define the processing node with improved sequence
   const processStep = RunnableSequence.from([
-    {
-      current: (state: WorkflowState) => state,
-      response: async (input: { current: WorkflowState }) => {
-        const lastMessage = input.current.messages[input.current.messages.length - 1];
-        return await model.invoke([
-          new HumanMessage(`Process step ${input.current.current_step}: ${lastMessage.content}`)
-        ]);
-      }
-    },
-    (input: { current: WorkflowState; response: AIMessage }) => ({
-      messages: [...input.current.messages, input.response],
-      current_step: input.current.current_step + 1,
-      workflow_status: "running"
-    } as WorkflowState)
+    async (state: WorkflowState) => {
+      const lastMessage = state.messages[state.messages.length - 1];
+      const response = await model.invoke([
+        new HumanMessage(`Process step ${state.current_step}: ${lastMessage.content}`)
+      ]);
+      
+      return {
+        messages: [response],
+        current_step: state.current_step + 1,
+        workflow_status: state.current_step >= 3 ? 'completed' : 'running'
+      } as WorkflowState;
+    }
   ]) as RunnableLike<WorkflowState, WorkflowState>;
 
   // Add the processing node and set edges
-  workflow.addNode("__start__", processStep);
-  workflow.setEntryPoint("__start__");
-  workflow.addEdge("__start__", END);
+  workflow.addNode("process", processStep);
+  workflow.setEntryPoint("process");
+  workflow.addEdge("process", END);
 
   return workflow.compile();
 }
 
 // Execute a workflow with state updates
-interface StateUpdate {
+interface WorkflowUpdate {
   messages?: BaseMessage[];
   current_step?: number;
-  workflow_status?: string;
+  workflow_status?: WorkflowState['workflow_status'];
 }
 
 export async function executeWorkflow(
@@ -80,9 +76,8 @@ export async function executeWorkflow(
   const initialState: WorkflowState = {
     messages: [new HumanMessage(workflowSteps[0])],
     current_step: 0,
-    workflow_status: "running"
+    workflow_status: 'running'
   };
 
-  const result = await graph.invoke(initialState);
-  return result as WorkflowState;
+  return await graph.invoke(initialState);
 }
