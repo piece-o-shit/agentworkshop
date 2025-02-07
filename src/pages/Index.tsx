@@ -45,9 +45,11 @@ const Index = () => {
                 </Link>
               </Button>
             )}
-            <Button variant="ghost" size="sm">
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/settings">
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Link>
             </Button>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />

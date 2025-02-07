@@ -10,6 +10,8 @@ import Auth from "./pages/auth";
 import Tools from "./pages/Tools";
 import Workflows from "./pages/Workflows";
 import Agents from "./pages/Agents";
+import Users from "./pages/Users";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./lib/auth/AuthContext";
 
@@ -37,6 +39,8 @@ const AppRoutes = () => (
     <Route path="/agents" element={<ProtectedRoute><Agents /></ProtectedRoute>} />
     <Route path="/workflows" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
     <Route path="/tools" element={<ProtectedRoute><Tools /></ProtectedRoute>} />
+    <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+    <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

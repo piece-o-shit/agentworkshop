@@ -14,11 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useRole } from "@/hooks/use-role";
 import { Navigate } from "react-router-dom";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface User {
   id: string;
-  email: string;
-  created_at: string;
+  full_name: string;
+  avatar_url: string | null;
+  updated_at: string;
   roles: string[];
 }
 
@@ -26,13 +28,13 @@ const Users = () => {
   const { toast } = useToast();
   const { isAdmin, isLoading: roleLoading } = useRole();
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, refetch } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
       // Fetch users
       const { data: users, error: usersError } = await supabase
         .from("profiles")
-        .select("id, full_name, updated_at");
+        .select("id, full_name, avatar_url, updated_at");
 
       if (usersError) throw usersError;
 
@@ -74,6 +76,7 @@ const Users = () => {
         title: "Success",
         description: "User role updated successfully",
       });
+      refetch();
     } catch (error) {
       toast({
         title: "Error",
@@ -101,7 +104,7 @@ const Users = () => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
+            <TableHead>User</TableHead>
             <TableHead>Last Updated</TableHead>
             <TableHead>Admin Access</TableHead>
             <TableHead>Actions</TableHead>
@@ -110,7 +113,17 @@ const Users = () => {
         <TableBody>
           {users.map((user) => (
             <TableRow key={user.id}>
-              <TableCell>{user.full_name}</TableCell>
+              <TableCell>
+                <div className="flex items-center space-x-4">
+                  <Avatar>
+                    <AvatarImage src={user.avatar_url || undefined} />
+                    <AvatarFallback>
+                      {user.full_name?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span>{user.full_name}</span>
+                </div>
+              </TableCell>
               <TableCell>
                 {new Date(user.updated_at).toLocaleDateString()}
               </TableCell>
