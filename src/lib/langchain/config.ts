@@ -59,8 +59,8 @@ export interface AgentResponse {
 }
 
 export interface AgentExecutor {
-  invoke(input: Record<string, any>): Promise<AgentResponse>;
-  call(input: Record<string, any>): Promise<AgentResponse>;
+  invoke(input: Record<string, any>): Promise<{ output: string }>;
+  call(input: Record<string, any>): Promise<{ output: string }>;
 }
 
 // Create a basic agent executor
@@ -80,11 +80,11 @@ export async function createAgentExecutor(
 
   // Create a simple agent that can use tools and follow a conversation
   const agent = {
-    invoke: async (input: Record<string, any>): Promise<AgentResponse> => {
+    invoke: async (input: Record<string, any>): Promise<{ output: string }> => {
       const result = await model.invoke(input.input);
       return { output: result };
     },
-    call: async (input: Record<string, any>): Promise<AgentResponse> => {
+    call: async (input: Record<string, any>): Promise<{ output: string }> => {
       const result = await model.invoke(input.input);
       return { output: result };
     }

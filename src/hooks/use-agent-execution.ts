@@ -68,17 +68,23 @@ export function useAgentExecution(agentId: string) {
           input,
         });
 
-        // Update execution record with stringified result
+        // Store the result as a JSON-compatible object
+        const jsonResult = {
+          response: result.output || result.toString(),
+          timestamp: new Date().toISOString()
+        };
+
+        // Update execution record with result
         await supabase
           .from("agent_executions")
           .update({
-            output: result,
+            output: jsonResult,
             status: "completed",
             completed_at: new Date().toISOString(),
           })
           .eq("id", execution.id);
 
-        return result;
+        return jsonResult;
       } catch (error) {
         console.error("Agent execution error:", error);
         toast({
