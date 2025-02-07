@@ -63,11 +63,11 @@ export class WorkflowScheduler {
         name: execution.name,
         description: "Scheduled workflow execution",
         created_by: "scheduler",
-        steps: parsedSteps,
+        steps: JSON.parse(JSON.stringify(parsedSteps)) as Json,
         status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        config: parsedConfig
+        config: JSON.parse(JSON.stringify(parsedConfig)) as Json
       };
 
       // Update last_run time
@@ -105,13 +105,13 @@ export class WorkflowScheduler {
         }
       };
 
-      const result = await executeWorkflow(workflow, [], config);
+      const result = await executeWorkflow(workflow, parsedSteps, config);
 
-      if (result.workflow_status === 'completed') {
+      if (result && typeof result === 'object' && 'workflow_status' in result && result.workflow_status === 'completed') {
         await logWorkflowExecution({
           workflow_id: workflow.id,
           status: 'completed',
-          result: JSON.parse(JSON.stringify(result.output)) as Json,
+          result: JSON.parse(JSON.stringify(result)) as Json,
           execution_time: new Date().toISOString()
         });
       }
