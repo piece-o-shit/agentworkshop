@@ -9,6 +9,134 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      agent_executions: {
+        Row: {
+          agent_id: string | null
+          completed_at: string | null
+          error: string | null
+          id: string
+          input: string
+          output: Json | null
+          started_at: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          completed_at?: string | null
+          error?: string | null
+          id?: string
+          input: string
+          output?: Json | null
+          started_at?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          completed_at?: string | null
+          error?: string | null
+          id?: string
+          input?: string
+          output?: Json | null
+          started_at?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_executions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_executions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_tools: {
+        Row: {
+          agent_id: string | null
+          id: string
+          tool_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          id?: string
+          tool_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          id?: string
+          tool_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_tools_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_tools_tool_id_fkey"
+            columns: ["tool_id"]
+            isOneToOne: false
+            referencedRelation: "tools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agents: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          model_config: Json
+          name: string
+          status: string | null
+          system_prompt: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          model_config?: Json
+          name: string
+          status?: string | null
+          system_prompt?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          model_config?: Json
+          name?: string
+          status?: string | null
+          system_prompt?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           content: string | null
@@ -56,6 +184,44 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      tools: {
+        Row: {
+          config: Json | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          type: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          type: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tools_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
