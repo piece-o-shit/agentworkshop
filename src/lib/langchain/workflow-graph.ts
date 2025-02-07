@@ -23,52 +23,46 @@ export function createWorkflowGraph() {
       messages: {
         type: "list",
         value: [] as BaseMessage[],
-        merge: function(a: BaseMessage[] | undefined, b: BaseMessage[] | undefined) {
-          return [...(a || []), ...(b || [])];
-        }
+        merge: (a: BaseMessage[], b: BaseMessage[]) => [...(a || []), ...(b || [])]
       },
       current_step: {
         type: "number",
         value: 0,
-        merge: function(_: number | undefined, b: number | undefined) {
-          return b || 0;
-        }
+        merge: (a: number, b: number) => b
       },
       workflow_status: {
         type: "string",
         value: "running",
-        merge: function(_: string | undefined, b: string | undefined) {
-          return b || "running";
-        }
+        merge: (a: string, b: string) => b
       },
     },
   });
 
   // Define the processing node
   const processStep = RunnableSequence.from([
-    async (state: WorkflowState) => {
-      const messages = state.messages;
-      const lastMessage = messages[messages.length - 1];
-      const response = await model.invoke([
-        new HumanMessage(
-          `Process step ${state.current_step}: ${lastMessage.content}`
-        ),
-      ]);
-      
-      return {
-        messages: [...messages, response],
-        current_step: state.current_step + 1,
-        workflow_status: "running",
-      };
+    {
+      state: (state: WorkflowState) => state,
+      response: async (input: { state: WorkflowState }) => {
+        const messages = input.state.messages;
+        const lastMessage = messages[messages.length - 1];
+        return await model.invoke([
+          new HumanMessage(
+            `Process step ${input.state.current_step}: ${lastMessage.content}`
+          ),
+        ]);
+      }
     },
-    // Add identity function as second element
-    (state: WorkflowState) => state,
+    (input: { state: WorkflowState; response: AIMessage }) => ({
+      messages: [...input.state.messages, input.response],
+      current_step: input.state.current_step + 1,
+      workflow_status: "running"
+    })
   ]);
 
   // Add the processing node and set edges
-  workflow.addNode("__start__", processStep);
-  workflow.setEntryPoint("__start__");
-  workflow.addEdge("__start__", END);
+  workflow.addNode("process", processStep);
+  workflow.setEntryPoint("process");
+  workflow.addEdge("process", END);
 
   return workflow.compile();
 }
@@ -79,12 +73,11 @@ export async function executeWorkflow(
 ): Promise<WorkflowState> {
   const graph = createWorkflowGraph();
   
-  // Create initial state with proper typing
-  const initialState = {
-    messages: [new HumanMessage(workflowSteps[0])] as BaseMessage[],
+  const initialState: WorkflowState = {
+    messages: [new HumanMessage(workflowSteps[0])],
     current_step: 0,
     workflow_status: "running"
-  } satisfies WorkflowState;
+  };
 
   const result = await graph.invoke(initialState);
   return result as WorkflowState;
