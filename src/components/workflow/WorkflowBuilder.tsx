@@ -48,15 +48,15 @@ export function WorkflowBuilder({
   initialValues,
   isLoading = false,
 }: WorkflowBuilderProps) {
+  const initialStep: WorkflowStep = {
+    id: uuidv4(),
+    name: "",
+    action: "",
+    parameters: {},
+  };
+
   const [steps, setSteps] = useState<WorkflowStep[]>(
-    initialValues?.steps || [
-      {
-        id: uuidv4(),
-        name: "",
-        action: "",
-        parameters: {},
-      },
-    ]
+    initialValues?.steps || [initialStep]
   );
 
   const form = useForm<WorkflowFormValues>({

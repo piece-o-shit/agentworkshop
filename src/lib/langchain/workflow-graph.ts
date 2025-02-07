@@ -18,12 +18,12 @@ const model = new ChatOpenAI({
 
 // Create workflow execution graph
 export function createWorkflowGraph() {
-  // Initialize the graph
+  // Initialize the graph with state schema
   const workflow = new StateGraph({
     channels: {
-      messages: [],
-      current_step: 0,
-      workflow_status: "running",
+      messages: { value: [] as BaseMessage[], type: "list" },
+      current_step: { value: 0, type: "number" },
+      workflow_status: { value: "running", type: "string" },
     },
   });
 
@@ -47,14 +47,14 @@ export function createWorkflowGraph() {
     },
   ]);
 
-  // Add the processing node to the graph
-  workflow.addNode("process", processStep);
+  // Add the processing node
+  workflow.addNode("__process__", processStep);
 
   // Add edges
-  workflow.addEdge("process", END);
+  workflow.addEdge("__process__", END);
 
   // Set the entry point
-  workflow.setEntryPoint("process");
+  workflow.setEntryPoint("__process__");
 
   // Compile the graph
   return workflow.compile();
