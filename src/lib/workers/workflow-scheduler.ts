@@ -105,7 +105,8 @@ export class WorkflowScheduler {
         }
       };
 
-      const result = await executeWorkflow(workflow, parsedSteps, config);
+      // Pass an empty array of tools instead of parsedSteps
+      const result = await executeWorkflow(workflow, [], config);
 
       if (result && typeof result === 'object' && 'workflow_status' in result && result.workflow_status === 'completed') {
         await logWorkflowExecution({
