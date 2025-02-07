@@ -23,17 +23,17 @@ export function createWorkflowGraph() {
       messages: {
         type: "list",
         value: [] as BaseMessage[],
-        merge: (a: BaseMessage[], b: BaseMessage[]) => [...a, ...b],
+        merge: (a, b) => [...(a || []), ...(b || [])],
       },
       current_step: {
         type: "number",
         value: 0,
-        merge: (a: number, b: number) => b,
+        merge: (_, b) => b,
       },
       workflow_status: {
         type: "string",
         value: "running",
-        merge: (a: string, b: string) => b,
+        merge: (_, b) => b,
       },
     },
   });
@@ -55,6 +55,8 @@ export function createWorkflowGraph() {
         workflow_status: "running",
       };
     },
+    // Add identity function as second element to satisfy RunnableSequence type requirements
+    (state) => state,
   ]);
 
   // Add the processing node and set edges
@@ -71,11 +73,11 @@ export async function executeWorkflow(
 ): Promise<WorkflowState> {
   const graph = createWorkflowGraph();
   
-  const initialState = {
+  const initialState: WorkflowState = {
     messages: [new HumanMessage(workflowSteps[0])],
     current_step: 0,
     workflow_status: "running",
-  } as const;
+  };
 
   const result = await graph.invoke(initialState);
   return result as WorkflowState;
