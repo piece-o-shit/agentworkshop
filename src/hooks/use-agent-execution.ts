@@ -2,7 +2,18 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { createAgentExecutor, createAgentChain } from "@/lib/langchain/config";
+import { 
+  executeAgent, 
+  createToolFromConfig 
+} from "@/lib/langchain/config";
+import { AgentType } from "@/lib/langchain/agent-types";
+import { 
+  DatabaseAgent, 
+  DatabaseTool,
+  convertToEnhancedConfig,
+  convertResultToJson,
+  parseToolConfig 
+} from "@/lib/langchain/database-utils";
 import { useToast } from "@/components/ui/use-toast";
 
 export function useAgentExecution(agentId: string) {
@@ -32,9 +43,12 @@ export function useAgentExecution(agentId: string) {
 
       if (toolError) throw toolError;
 
+      const dbAgent = agentData as DatabaseAgent;
+      const dbTools = toolData?.map((t) => t.tools as DatabaseTool) || [];
+
       return {
-        ...agentData,
-        tools: toolData?.map((t) => t.tools) || [],
+        agent: dbAgent,
+        tools: dbTools,
       };
     },
   });
@@ -59,23 +73,23 @@ export function useAgentExecution(agentId: string) {
 
         if (execError) throw execError;
 
-        // Initialize agent executor with tools
-        const executor = await createAgentExecutor(agent!, agent?.tools || []);
-        const chain = createAgentChain(executor);
+        if (!agent) throw new Error("Agent not found");
 
-        // Execute the agent
-        const result = await chain.invoke({
-          input,
-        });
+        // Convert agent configuration to enhanced config
+        const enhancedConfig = convertToEnhancedConfig(agent.agent);
 
-        // Get the response from the invoke method result
-        const responseText = result.invoke.output;
+        // Convert tool configs to LangChain tools
+        const tools = agent.tools.map(tool => createToolFromConfig({
+          name: tool.name,
+          description: tool.description,
+          config: parseToolConfig(tool.config || {}),
+        }));
 
-        // Store the result as a JSON-compatible object
-        const jsonResult = {
-          response: responseText,
-          timestamp: new Date().toISOString()
-        };
+        // Execute the agent with enhanced configuration
+        const result = await executeAgent(enhancedConfig, tools, input);
+
+        // Convert result to JSON-safe format
+        const jsonResult = convertResultToJson(result);
 
         // Update execution record with result
         await supabase

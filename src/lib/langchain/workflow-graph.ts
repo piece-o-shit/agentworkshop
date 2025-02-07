@@ -1,83 +1,188 @@
-
 import { ChatOpenAI } from "@langchain/openai";
 import { StateGraph, END } from "@langchain/langgraph";
 import { BaseMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
 import { RunnableSequence } from "@langchain/core/runnables";
-import { RunnableLike } from "@langchain/core/runnables";
+import { Tool } from "@langchain/core/tools";
+import { WorkflowStep, Workflow } from "@/types/workflow";
+import { AgentExecutorResult, AgentType } from "./agent-types";
+import { executeAgent } from "./config";
 
-interface WorkflowState {
+type WorkflowStatus = 'running' | 'completed' | 'error';
+
+export interface WorkflowState {
   messages: BaseMessage[];
   current_step: number;
-  workflow_status: 'running' | 'completed' | 'error';
+  workflow_status: WorkflowStatus;
+  step_results: Array<{
+    step: WorkflowStep;
+    result: AgentExecutorResult;
+    timestamp: string;
+  }>;
+  error?: {
+    step: number;
+    message: string;
+    timestamp: string;
+  };
 }
 
-// Initialize LLM
-const model = new ChatOpenAI({
-  temperature: 0,
-  modelName: "gpt-4",
-});
+interface WorkflowContext {
+  tools: Tool[];
+  workflow: Workflow;
+  onStepComplete?: (step: number, result: AgentExecutorResult) => void;
+  onError?: (error: Error, step: number) => void;
+}
 
 // Create workflow execution graph
-export function createWorkflowGraph() {
-  const workflow = new StateGraph<WorkflowState>({
+export function createWorkflowGraph(context: WorkflowContext) {
+  const model = new ChatOpenAI({
+    temperature: 0,
+    modelName: "gpt-4",
+  });
+
+  const graph = new StateGraph<WorkflowState>({
     channels: {
       messages: {
-        default: () => [] as BaseMessage[],
-        reducer: (messages: BaseMessage[], newMessages: BaseMessage[]) => 
-          [...messages, ...newMessages]
+        default: () => [],
+        reducer: (prev, next) => next
       },
       current_step: {
         default: () => 0,
-        reducer: (_: number, newStep: number) => newStep
+        reducer: (prev, next) => next
       },
       workflow_status: {
-        default: () => 'running' as const,
-        reducer: (_: string, newStatus: string) => newStatus
+        default: () => 'running',
+        reducer: (prev, next) => next
+      },
+      step_results: {
+        default: () => [],
+        reducer: (prev, next) => next
+      },
+      error: {
+        default: () => undefined,
+        reducer: (prev, next) => next
       }
-    },
+    }
   });
 
-  // Define the processing node with improved sequence
   const processStep = RunnableSequence.from([
+    (state: WorkflowState) => state,
     async (state: WorkflowState) => {
-      const lastMessage = state.messages[state.messages.length - 1];
-      const response = await model.invoke([
-        new HumanMessage(`Process step ${state.current_step}: ${lastMessage.content}`)
-      ]);
-      
-      return {
-        messages: [response],
-        current_step: state.current_step + 1,
-        workflow_status: state.current_step >= 3 ? 'completed' : 'running'
-      } as WorkflowState;
+      try {
+        const currentStep = context.workflow.steps[state.current_step];
+        if (!currentStep) {
+          return {
+            messages: state.messages,
+            current_step: state.current_step,
+            workflow_status: 'completed',
+            step_results: state.step_results
+          } as WorkflowState;
+        }
+
+        // Execute the step using our agent system
+        const result = await executeAgent({
+          name: currentStep.name,
+          description: `Executing workflow step: ${currentStep.name}`,
+          type: AgentType.STRUCTURED_CHAT,
+          model_config: {
+            temperature: 0,
+            model: "gpt-4",
+          },
+          system_prompt: `You are executing the workflow step: ${currentStep.name}. 
+                         Action: ${currentStep.action}
+                         Parameters: ${JSON.stringify(currentStep.parameters)}`,
+          maxIterations: 3,
+          returnIntermediateSteps: true,
+          memory: {
+            type: 'conversation_buffer_window',
+            windowSize: 5,
+          },
+          errorHandling: {
+            maxRetries: 2,
+            handleParsingErrors: true,
+          },
+        }, context.tools, JSON.stringify(currentStep.parameters));
+
+        // Notify step completion if callback provided
+        if (context.onStepComplete) {
+          context.onStepComplete(state.current_step, result);
+        }
+
+        return {
+          messages: [...state.messages, new AIMessage(result.output)],
+          current_step: state.current_step + 1,
+          workflow_status: state.current_step >= context.workflow.steps.length - 1 ? 'completed' : 'running',
+          step_results: [...state.step_results, {
+            step: currentStep,
+            result,
+            timestamp: new Date().toISOString()
+          }]
+        } as WorkflowState;
+      } catch (error) {
+        // Handle errors and notify if callback provided
+        const errorDetails = {
+          step: state.current_step,
+          message: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date().toISOString()
+        };
+
+        if (context.onError) {
+          context.onError(error instanceof Error ? error : new Error(errorDetails.message), state.current_step);
+        }
+
+        return {
+          messages: state.messages,
+          current_step: state.current_step,
+          workflow_status: 'error',
+          step_results: state.step_results,
+          error: errorDetails
+        } as WorkflowState;
+      }
     }
-  ]) as RunnableLike<WorkflowState, WorkflowState>;
+  ]);
 
-  // Add the processing node and set edges
-  workflow.addNode("process", processStep);
-  workflow.setEntryPoint("process");
-  workflow.addEdge("process", END);
+  // Add nodes and edges
+  graph.addNode("__start__", processStep);
+  graph.addEdge("__start__", END);
+  graph.setEntryPoint("__start__");
 
-  return workflow.compile();
-}
-
-// Execute a workflow with state updates
-interface WorkflowUpdate {
-  messages?: BaseMessage[];
-  current_step?: number;
-  workflow_status?: WorkflowState['workflow_status'];
+  return graph.compile();
 }
 
 export async function executeWorkflow(
-  workflowSteps: string[]
+  workflow: Workflow,
+  tools: Tool[] = [],
+  callbacks?: {
+    onStepComplete?: (step: number, result: AgentExecutorResult) => void;
+    onError?: (error: Error, step: number) => void;
+  }
 ): Promise<WorkflowState> {
-  const graph = createWorkflowGraph();
-  
+  const graph = createWorkflowGraph({
+    workflow,
+    tools,
+    onStepComplete: callbacks?.onStepComplete,
+    onError: callbacks?.onError
+  });
+
   const initialState: WorkflowState = {
-    messages: [new HumanMessage(workflowSteps[0])],
+    messages: [],
     current_step: 0,
-    workflow_status: 'running'
+    workflow_status: 'running',
+    step_results: []
   };
 
-  return await graph.invoke(initialState);
+  try {
+    const result = await graph.invoke(initialState);
+    return result as WorkflowState;
+  } catch (error) {
+    console.error('Workflow execution error:', error);
+    return {
+      ...initialState,
+      workflow_status: 'error',
+      error: {
+        step: -1,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      }
+    };
+  }
 }

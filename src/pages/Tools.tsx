@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -9,6 +8,8 @@ import { Link } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { DocumentSearch } from "@/components/DocumentSearch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Form,
   FormControl,
@@ -53,6 +54,7 @@ const toolFormSchema = z.object({
 const Tools = () => {
   const { tools, createTool, isLoading } = useTools();
   const [parameters, setParameters] = useState<ToolParameter[]>([]);
+  const [activeTab, setActiveTab] = useState("tools");
 
   const form = useForm({
     resolver: zodResolver(toolFormSchema),
@@ -119,149 +121,164 @@ const Tools = () => {
             Create and manage your agent tools
           </p>
 
-          <Card className="p-6">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Tool name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="tools">Custom Tools</TabsTrigger>
+              <TabsTrigger value="documents">Document Search</TabsTrigger>
+            </TabsList>
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} placeholder="Tool description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a tool type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="action">Action</SelectItem>
-                          <SelectItem value="data">Data</SelectItem>
-                          <SelectItem value="integration">Integration</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Separator className="my-4" />
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold">Parameters</h3>
-                    <Button type="button" onClick={addParameter} variant="outline">
-                      <PlusCircle className="w-4 h-4 mr-2" />
-                      Add Parameter
-                    </Button>
-                  </div>
-
-                  {parameters.map((param) => (
-                    <Card key={param.id} className="p-4">
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormItem>
-                            <FormLabel>Name</FormLabel>
-                            <FormControl>
-                              <Input
-                                value={param.name}
-                                onChange={(e) => {
-                                  const updated = parameters.map((p) =>
-                                    p.id === param.id ? { ...p, name: e.target.value } : p
-                                  );
-                                  setParameters(updated);
-                                }}
-                                placeholder="Parameter name"
-                              />
-                            </FormControl>
-                          </FormItem>
-                          <FormItem>
-                            <FormLabel>Type</FormLabel>
-                            <Select
-                              value={param.type}
-                              onValueChange={(value: 'string' | 'number' | 'boolean') => {
-                                const updated = parameters.map((p) =>
-                                  p.id === param.id ? { ...p, type: value } : p
-                                );
-                                setParameters(updated);
-                              }}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select type" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="string">String</SelectItem>
-                                <SelectItem value="number">Number</SelectItem>
-                                <SelectItem value="boolean">Boolean</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </FormItem>
-                        </div>
+            <TabsContent value="tools">
+              <Card className="p-6">
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Default Value</FormLabel>
+                          <FormLabel>Name</FormLabel>
                           <FormControl>
-                            <Input
-                              value={param.defaultValue}
-                              onChange={(e) => {
-                                const updated = parameters.map((p) =>
-                                  p.id === param.id ? { ...p, defaultValue: e.target.value } : p
-                                );
-                                setParameters(updated);
-                              }}
-                              placeholder="Default value"
-                            />
+                            <Input {...field} placeholder="Tool name" />
                           </FormControl>
+                          <FormMessage />
                         </FormItem>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          onClick={() => removeParameter(param.id)}
-                        >
-                          Remove Parameter
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} placeholder="Tool description" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a tool type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="action">Action</SelectItem>
+                              <SelectItem value="data">Data</SelectItem>
+                              <SelectItem value="integration">Integration</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <Separator className="my-4" />
+
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold">Parameters</h3>
+                        <Button type="button" onClick={addParameter} variant="outline">
+                          <PlusCircle className="w-4 h-4 mr-2" />
+                          Add Parameter
                         </Button>
                       </div>
-                    </Card>
-                  ))}
-                </div>
 
-                <div className="pt-4">
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Creating..." : "Create Tool"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </Card>
+                      {parameters.map((param) => (
+                        <Card key={param.id} className="p-4">
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <FormItem>
+                                <FormLabel>Name</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    value={param.name}
+                                    onChange={(e) => {
+                                      const updated = parameters.map((p) =>
+                                        p.id === param.id ? { ...p, name: e.target.value } : p
+                                      );
+                                      setParameters(updated);
+                                    }}
+                                    placeholder="Parameter name"
+                                  />
+                                </FormControl>
+                              </FormItem>
+                              <FormItem>
+                                <FormLabel>Type</FormLabel>
+                                <Select
+                                  value={param.type}
+                                  onValueChange={(value: 'string' | 'number' | 'boolean') => {
+                                    const updated = parameters.map((p) =>
+                                      p.id === param.id ? { ...p, type: value } : p
+                                    );
+                                    setParameters(updated);
+                                  }}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="string">String</SelectItem>
+                                    <SelectItem value="number">Number</SelectItem>
+                                    <SelectItem value="boolean">Boolean</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormItem>
+                            </div>
+                            <FormItem>
+                              <FormLabel>Default Value</FormLabel>
+                              <FormControl>
+                                <Input
+                                  value={param.defaultValue}
+                                  onChange={(e) => {
+                                    const updated = parameters.map((p) =>
+                                      p.id === param.id ? { ...p, defaultValue: e.target.value } : p
+                                    );
+                                    setParameters(updated);
+                                  }}
+                                  placeholder="Default value"
+                                />
+                              </FormControl>
+                            </FormItem>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              onClick={() => removeParameter(param.id)}
+                            >
+                              Remove Parameter
+                            </Button>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+
+                    <div className="pt-4">
+                      <Button type="submit" disabled={isLoading}>
+                        {isLoading ? "Creating..." : "Create Tool"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="documents">
+              <Card className="p-6">
+                <DocumentSearch />
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
     </div>

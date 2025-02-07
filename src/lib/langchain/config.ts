@@ -1,106 +1,195 @@
 
 import { OpenAI } from "@langchain/openai";
-import { 
-  Tool,
-  StructuredToolInterface
-} from "@langchain/core/tools";
+import { Tool, StructuredTool } from "@langchain/core/tools";
+import { z } from "zod";
 import { 
   ChatPromptTemplate, 
-  MessagesPlaceholder 
+  MessagesPlaceholder,
+  SystemMessagePromptTemplate,
+  HumanMessagePromptTemplate
 } from "@langchain/core/prompts";
 import { 
   RunnableSequence,
   RunnablePassthrough 
 } from "@langchain/core/runnables";
+import { 
+  AgentExecutor as LangChainAgentExecutor,
+  createReactAgent,
+  createStructuredChatAgent,
+} from "langchain/agents";
+import { 
+  AgentType, 
+  EnhancedAgentConfig, 
+  AgentExecutorResult,
+  createAgentMemory 
+} from "./agent-types";
+import { ChatHistoryManager } from "./chat-history";
 
-export interface AgentConfig {
-  name: string;
-  description?: string;
-  model_config: any;
-  system_prompt?: string;
-}
 
 // Initialize OpenAI model with configuration 
-export function createModel(config: AgentConfig) {
+export function createModel(config: EnhancedAgentConfig) {
   const modelConfig = config.model_config || {};
   return new OpenAI({
     temperature: modelConfig.temperature ?? 0.7,
     maxTokens: modelConfig.maxTokens,
     modelName: modelConfig.model || "gpt-4",
+    streaming: true,
   });
 }
 
-export function createToolFromConfig(toolConfig: any): Tool {
+interface ToolConfig {
+  name: string;
+  description: string;
+  config?: {
+    schema?: z.ZodObject<{
+      input: z.ZodOptional<z.ZodString>;
+    }, "strip">;
+    returnDirect?: boolean;
+    verbose?: boolean;
+  };
+  handler?: (input: Record<string, unknown>) => Promise<string>;
+}
+
+export function createToolFromConfig(toolConfig: ToolConfig): Tool {
+  if (!toolConfig.name || !toolConfig.description) {
+    throw new Error('Tool configuration must include name and description');
+  }
+
   class CustomTool extends Tool {
     name = toolConfig.name;
     description = toolConfig.description;
-    schema = toolConfig.config.schema;
-    returnDirect = false;
-    verbose = false;
+    schema = z.object({
+      input: z.string().optional(),
+    }).transform((obj) => obj.input || "");
+    returnDirect = toolConfig.config?.returnDirect ?? false;
+    verbose = toolConfig.config?.verbose ?? false;
 
     get lc_namespace() {
       return ['custom'];
     }
 
-    constructor() {
-      super();
-    }
-
-    protected async _call(input: Record<string, any>): Promise<string> {
-      return `Executed ${toolConfig.name} with input: ${JSON.stringify(input)}`;
+    protected async _call(input: Record<string, unknown>): Promise<string> {
+      try {
+        if (toolConfig.handler && typeof toolConfig.handler === 'function') {
+          return await toolConfig.handler(input);
+        }
+        throw new Error('No tool handler implemented');
+      } catch (error) {
+        console.error(`Error executing tool ${this.name}:`, error);
+        throw error;
+      }
     }
   }
 
   return new CustomTool();
 }
 
-export interface AgentResponse {
-  output: string;
-}
-
-export interface AgentExecutor {
-  invoke(input: Record<string, any>): Promise<{ output: string }>;
-  call(input: Record<string, any>): Promise<{ output: string }>;
-}
-
-// Create a basic agent executor
-export async function createAgentExecutor(
-  config: AgentConfig,
-  toolConfigs: any[] = []
-): Promise<AgentExecutor> {
+// Create an agent based on type
+export async function createAgentByType(
+  config: EnhancedAgentConfig,
+  tools: Tool[]
+): Promise<LangChainAgentExecutor> {
   const model = createModel(config);
-  const tools = toolConfigs.map(createToolFromConfig);
+  const memory = createAgentMemory(config.memory);
+  const chatHistory = new ChatHistoryManager(config.memory?.maxSize);
 
-  const prompt = ChatPromptTemplate.fromMessages([
-    ["system", config.system_prompt || "You are a helpful AI assistant."],
+  const basePrompt = ChatPromptTemplate.fromMessages([
+    SystemMessagePromptTemplate.fromTemplate(
+      config.system_prompt || "You are a helpful AI assistant."
+    ),
     new MessagesPlaceholder("chat_history"),
-    ["human", "{input}"],
+    HumanMessagePromptTemplate.fromTemplate("{input}"),
     new MessagesPlaceholder("agent_scratchpad"),
   ]);
 
-  // Create a simple agent that can use tools and follow a conversation
-  const agent = {
-    invoke: async (input: Record<string, any>): Promise<{ output: string }> => {
-      const result = await model.invoke(input.input);
-      return { output: result };
-    },
-    call: async (input: Record<string, any>): Promise<{ output: string }> => {
-      const result = await model.invoke(input.input);
-      return { output: result };
-    }
-  };
+  let agent;
+  switch (config.type) {
+    case AgentType.REACT:
+      agent = await createReactAgent({
+        llm: model,
+        tools,
+        prompt: basePrompt,
+      });
+      break;
+    case AgentType.STRUCTURED_CHAT:
+      agent = await createStructuredChatAgent({
+        llm: model,
+        tools,
+        prompt: basePrompt,
+      });
+      break;
+    case AgentType.PLAN_AND_EXECUTE:
+      throw new Error('Plan and Execute agent type not yet implemented');
+    default:
+      throw new Error(`Unsupported agent type: ${config.type}`);
+  }
 
-  return agent;
+  return new LangChainAgentExecutor({
+    agent,
+    tools,
+    memory,
+    maxIterations: config.maxIterations || 3,
+    returnIntermediateSteps: config.returnIntermediateSteps || false,
+    earlyStoppingMethod: config.earlyStoppingMethod || "force",
+    handleParsingErrors: config.errorHandling?.handleParsingErrors || true,
+  });
 }
 
-// Create a runnable chain for the agent
-export function createAgentChain(executor: AgentExecutor) {
+// Create a runnable chain for the agent with proper memory management
+export function createAgentChain(
+  executor: LangChainAgentExecutor,
+  chatHistory: ChatHistoryManager
+) {
   return RunnableSequence.from([
     {
       input: new RunnablePassthrough(),
-      chat_history: () => [], // Can be extended to maintain chat history
+      chat_history: async () => chatHistory.getFormattedHistory(),
       agent_scratchpad: () => [],
     },
     executor,
   ]);
+}
+
+// Execute agent with error handling and retries
+export async function executeAgent(
+  config: EnhancedAgentConfig,
+  tools: Tool[],
+  input: string
+): Promise<AgentExecutorResult> {
+  const maxRetries = config.errorHandling?.maxRetries || 2;
+  let retryCount = 0;
+
+  while (retryCount <= maxRetries) {
+    try {
+      const executor = await createAgentByType(config, tools);
+      const chatHistory = new ChatHistoryManager(config.memory?.maxSize);
+      const chain = createAgentChain(executor, chatHistory);
+
+      const result = await chain.invoke({
+        input,
+      });
+
+      return {
+        output: result.output,
+        intermediateSteps: result.intermediateSteps,
+      };
+    } catch (error) {
+      retryCount++;
+      if (retryCount > maxRetries) {
+        return {
+          output: config.errorHandling?.fallbackResponses?.error || 
+                 "I encountered an error and was unable to complete the task.",
+          errorDetails: {
+            message: error.message,
+            type: error.name,
+            retryCount,
+          },
+        };
+      }
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+    }
+  }
+
+  throw new Error('Unexpected error in executeAgent');
 }
