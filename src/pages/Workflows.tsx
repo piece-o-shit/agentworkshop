@@ -1,58 +1,61 @@
-
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PlusCircle, Bot, ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
-import { WorkflowBuilder } from "@/components/workflow/WorkflowBuilder";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import { useWorkflows } from "@/hooks/use-workflows";
+import { WorkflowHeader } from "@/components/workflows/WorkflowHeader";
+import { WorkflowList } from "@/components/workflows/WorkflowList";
+import { WorkflowTabs } from "@/components/workflows/WorkflowTabs";
+import { WorkflowBuilder } from "@/components/workflow/WorkflowBuilder";
+import { WorkflowFormValues, CreateWorkflowInput, Workflow, WorkflowStep, FormattedWorkflow } from "@/types/workflow";
+import { Json } from "@/integrations/supabase/types";
 
 export default function Workflows() {
   const [isCreating, setIsCreating] = useState(false);
-  const { createWorkflow, isLoading } = useWorkflows();
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
+  const { createWorkflow, workflows, isLoading } = useWorkflows();
 
-  const handleCreateWorkflow = async (values: any) => {
-    await createWorkflow.mutateAsync({
-      ...values,
-      status: "draft",
-    });
+  const transformToDbFormat = (values: WorkflowFormValues): CreateWorkflowInput => ({
+    name: values.name,
+    description: values.description || '',
+    steps: JSON.parse(JSON.stringify(values.steps)) as Json,
+    status: 'draft',
+    config: JSON.parse(JSON.stringify(values.config || {})) as Json,
+    created_by: 'system' // This should come from auth context in production
+  });
+
+  const transformFromDbFormat = (workflow: Workflow): FormattedWorkflow => ({
+    ...workflow,
+    description: workflow.description || '',  // Ensure description is never undefined
+    created_by: workflow.created_by || 'system',  // Ensure created_by is never undefined
+    steps: JSON.parse(JSON.stringify(workflow.steps)) as WorkflowStep[],
+    config: JSON.parse(JSON.stringify(workflow.config)) as Record<string, Json>
+  });
+
+  const handleCreateWorkflow = async (values: WorkflowFormValues) => {
+    const input = transformToDbFormat(values);
+    const workflow = await createWorkflow.mutateAsync(input);
+    setIsCreating(false);
+    setSelectedWorkflowId(workflow.id);
+  };
+
+  const handleWorkflowSelect = (workflowId: string) => {
+    setSelectedWorkflowId(workflowId);
     setIsCreating(false);
   };
 
+  const selectedWorkflow = workflows?.find(w => w.id === selectedWorkflowId);
+  const formattedWorkflow: FormattedWorkflow | undefined = selectedWorkflow ? transformFromDbFormat(selectedWorkflow) : undefined;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary">
-      <nav className="glass-panel fixed top-0 w-full z-50 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Bot className="w-8 h-8 text-primary" />
-            <span className="text-xl font-semibold">AgentFlow</span>
-          </div>
-          <Link to="/">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </Link>
-        </div>
-      </nav>
+      <WorkflowHeader
+        onCreateClick={() => setIsCreating(true)}
+        showCreateButton={!isCreating && !selectedWorkflowId}
+      />
 
-      <main className="container mx-auto pt-24 px-4">
+      <main className="container mx-auto px-4">
         <div className="fade-in">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">Workflows</h1>
-              <p className="text-muted-foreground">
-                Create and manage your automated workflows
-              </p>
-            </div>
-            {!isCreating && (
-              <Button onClick={() => setIsCreating(true)}>
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Create Workflow
-              </Button>
-            )}
-          </div>
-
           {isCreating ? (
             <Card className="p-6">
               <div className="flex items-center justify-between mb-6">
@@ -67,10 +70,20 @@ export default function Workflows() {
                 isLoading={createWorkflow.isPending}
               />
             </Card>
+          ) : selectedWorkflowId ? (
+            <WorkflowTabs
+              workflow={formattedWorkflow}
+              onBack={() => setSelectedWorkflowId(null)}
+              onUpdate={async (values) => {
+                // Handle workflow update
+              }}
+              isLoading={isLoading}
+            />
           ) : (
-            <div className="grid grid-cols-1 gap-6">
-              {/* Workflow list will be implemented here */}
-            </div>
+            <WorkflowList
+              workflows={workflows?.map(w => transformFromDbFormat(w))}
+              onSelect={handleWorkflowSelect}
+            />
           )}
         </div>
       </main>

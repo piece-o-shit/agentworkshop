@@ -3,6 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 
+interface IncrementErrorCountResponse {
+  error_count: number;
+}
+
 export type ScheduleStatus = 'active' | 'paused' | 'error';
 
 export interface ScheduledWorkflow {
@@ -182,7 +186,10 @@ export function useScheduler() {
             await supabase
               .from('scheduled_workflows')
               .update({
-                error_count: supabase.sql`error_count + 1`,
+                error_count: (await supabase
+                  .rpc('increment_error_count', { schedule_id: execution.id })
+                  .single()
+                  .then(({ data }) => (data as IncrementErrorCountResponse).error_count)),
                 last_error: error instanceof Error ? error.message : 'Unknown error'
               })
               .eq('id', execution.id);
@@ -192,7 +199,7 @@ export function useScheduler() {
     }, 60000); // Check every minute
 
     return () => clearInterval(interval);
-  }, []);
+  }, [toast]);
 
   return {
     schedules,

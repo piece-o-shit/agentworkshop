@@ -1,5 +1,5 @@
 import { Json } from "@/integrations/supabase/types";
-import { AgentType, EnhancedAgentConfig } from "./agent-types";
+import { AgentType, ModelProvider, EnhancedAgentConfig } from "./agent-types";
 import { z } from "zod";
 
 // Type for agent data from database
@@ -89,9 +89,17 @@ export function convertToEnhancedConfig(
   agent: DatabaseAgent,
   defaultType: AgentType = AgentType.STRUCTURED_CHAT
 ): EnhancedAgentConfig {
+  // Extract provider from model_config if available, default to OpenAI
+  const modelConfig = isJsonObject(agent.model_config) ? agent.model_config : {};
+  const provider = typeof modelConfig.provider === 'string' &&
+    Object.values(ModelProvider).includes(modelConfig.provider as ModelProvider)
+    ? modelConfig.provider as ModelProvider
+    : ModelProvider.OPENAI;
+
   return {
     name: agent.name,
     description: agent.description,
+    provider,
     model_config: parseModelConfig(agent.model_config),
     system_prompt: agent.system_prompt,
     type: defaultType,

@@ -1,5 +1,7 @@
-
 import { OpenAI } from "@langchain/openai";
+import { ChatAnthropic } from "@langchain/anthropic";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { MistralAI } from "@langchain/mistralai";
 import { Tool, StructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 import { 
@@ -18,23 +20,56 @@ import {
   createStructuredChatAgent,
 } from "langchain/agents";
 import { 
-  AgentType, 
+  AgentType,
+  ModelProvider, 
   EnhancedAgentConfig, 
   AgentExecutorResult,
   createAgentMemory 
 } from "./agent-types";
 import { ChatHistoryManager } from "./chat-history";
 
-
-// Initialize OpenAI model with configuration 
+// Initialize model with configuration based on provider
 export function createModel(config: EnhancedAgentConfig) {
   const modelConfig = config.model_config || {};
-  return new OpenAI({
-    temperature: modelConfig.temperature ?? 0.7,
-    maxTokens: modelConfig.maxTokens,
-    modelName: modelConfig.model || "gpt-4",
-    streaming: true,
-  });
+  const provider = config.provider || ModelProvider.OPENAI;
+
+  switch (provider) {
+    case ModelProvider.OPENAI:
+      return new OpenAI({
+        temperature: modelConfig.temperature ?? 0.7,
+        maxTokens: modelConfig.maxTokens,
+        modelName: modelConfig.model || "gpt-4",
+        streaming: true,
+      });
+
+    case ModelProvider.ANTHROPIC:
+      return new ChatAnthropic({
+        temperature: modelConfig.anthropicOptions?.temperature ?? 0.7,
+        maxTokens: modelConfig.anthropicOptions?.maxTokens,
+        modelName: modelConfig.model || "claude-3-opus-20240229",
+        streaming: true,
+        anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+      });
+
+    case ModelProvider.GOOGLE:
+      return new ChatGoogleGenerativeAI({
+        temperature: modelConfig.googleOptions?.temperature ?? 0.7,
+        maxOutputTokens: modelConfig.googleOptions?.maxOutputTokens,
+        modelName: modelConfig.model || "gemini-pro",
+        apiKey: process.env.GOOGLE_API_KEY,
+      });
+
+    case ModelProvider.MISTRAL:
+      return new MistralAI({
+        temperature: modelConfig.mistralOptions?.temperature ?? 0.7,
+        maxTokens: modelConfig.mistralOptions?.maxTokens,
+        model: modelConfig.model || "mistral-large-latest",
+        apiKey: process.env.MISTRAL_API_KEY,
+      });
+
+    default:
+      throw new Error(`Unsupported model provider: ${provider}`);
+  }
 }
 
 interface ToolConfig {
@@ -90,7 +125,7 @@ export async function createAgentByType(
   tools: Tool[]
 ): Promise<LangChainAgentExecutor> {
   const model = createModel(config);
-  const memory = createAgentMemory(config.memory);
+  const memory = createAgentMemory(config.memory, config.model_config?.model, config.provider);
   const chatHistory = new ChatHistoryManager(config.memory?.maxSize);
 
   const basePrompt = ChatPromptTemplate.fromMessages([

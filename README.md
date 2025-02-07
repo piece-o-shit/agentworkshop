@@ -51,6 +51,11 @@ AgentFlow is a modern web application that combines the power of LangChain.js an
   - Sequential and parallel execution
   - State graph management
   - Event system for monitoring
+- **Workflow Scheduling**
+  - Cron-based scheduling
+  - Error handling with automatic retries
+  - Execution logging and monitoring
+  - Status tracking and notifications
 
 ## Technical Stack
 
@@ -116,10 +121,13 @@ npm run build
 
 1. Create a new Supabase project
 2. Enable the pgvector extension
-3. Run the migration:
+3. Run the migrations in order:
    ```bash
    cd supabase
-   supabase migration up
+   supabase migration up 20240207_create_vector_store
+   supabase migration up 20240207_create_scheduled_workflows
+   supabase migration up 20240207_create_workflow_logs
+   supabase migration up 20240207_create_error_count_function
    ```
 
 ## Usage Examples
@@ -190,6 +198,28 @@ const workflow = createWorkflowGraph({
 const result = await executeWorkflow(workflow);
 ```
 
+### Scheduling a Workflow
+
+```typescript
+import { useScheduler } from '@/hooks/use-scheduler';
+
+function ScheduleWorkflow({ workflowId }) {
+  const { createSchedule } = useScheduler();
+
+  // Create a schedule
+  await createSchedule({
+    workflow_id: workflowId,
+    name: 'Daily Processing',
+    schedule: '0 0 * * *', // Run daily at midnight
+    config: {
+      max_retries: 3,
+      timeout: 300,
+      notifications: true
+    }
+  });
+}
+```
+
 ## Architecture
 
 ### Component Structure
@@ -199,7 +229,8 @@ src/
 ├── components/         # UI components
 ├── hooks/             # Custom React hooks
 ├── lib/
-│   └── langchain/     # LangChain integration
+│   ├── langchain/     # LangChain integration
+│   └── workers/       # Background workers
 ├── integrations/      # External service integrations
 ├── pages/            # Route components
 └── types/            # TypeScript type definitions
@@ -216,11 +247,13 @@ src/
    - Custom hooks
    - LangChain agents
    - Workflow execution
+   - Background scheduling
 
 3. Data Access Layer
    - Vector store operations
    - Supabase integration
    - Document processing
+   - Execution logging
 
 ## Contributing
 

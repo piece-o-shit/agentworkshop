@@ -5,6 +5,9 @@ import {
   ConversationTokenBufferMemory 
 } from "langchain/memory";
 import { OpenAI } from "@langchain/openai";
+import { ChatAnthropic } from "@langchain/anthropic";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { MistralAI } from "@langchain/mistralai";
 
 export enum AgentType {
   REACT = 'react',
@@ -12,13 +15,40 @@ export enum AgentType {
   PLAN_AND_EXECUTE = 'plan_and_execute'
 }
 
+export enum ModelProvider {
+  OPENAI = 'openai',
+  ANTHROPIC = 'anthropic',
+  GOOGLE = 'google',
+  MISTRAL = 'mistral'
+}
+
 export interface AgentConfig {
   name: string;
   description?: string;
+  provider: ModelProvider;
   model_config: {
     temperature?: number;
     maxTokens?: number;
     model?: string;
+    // Provider-specific options
+    anthropicOptions?: {
+      maxTokens?: number;
+      temperature?: number;
+      topK?: number;
+      topP?: number;
+    };
+    googleOptions?: {
+      maxOutputTokens?: number;
+      temperature?: number;
+      topK?: number;
+      topP?: number;
+    };
+    mistralOptions?: {
+      maxTokens?: number;
+      temperature?: number;
+      topP?: number;
+      safeMode?: boolean;
+    };
   };
   system_prompt?: string;
 }
@@ -46,7 +76,7 @@ export interface AgentMemoryConfig {
   windowSize?: number;
 }
 
-export function createAgentMemory(config?: AgentMemoryConfig, modelName: string = "gpt-3.5-turbo") {
+export function createAgentMemory(config?: AgentMemoryConfig, modelName: string = "gpt-3.5-turbo", provider: ModelProvider = ModelProvider.OPENAI) {
   if (!config) {
     return new BufferMemory({
       returnMessages: true,
@@ -61,10 +91,32 @@ export function createAgentMemory(config?: AgentMemoryConfig, modelName: string 
         memoryKey: "chat_history",
       });
     case 'conversation_buffer_window': {
-      const llm = new OpenAI({
-        modelName: modelName,
-        temperature: 0,
-      });
+      let llm;
+      switch (provider) {
+        case ModelProvider.ANTHROPIC:
+          llm = new ChatAnthropic({
+            modelName: modelName || "claude-3-opus-20240229",
+            temperature: 0,
+          });
+          break;
+        case ModelProvider.GOOGLE:
+          llm = new ChatGoogleGenerativeAI({
+            modelName: modelName || "gemini-pro",
+            temperature: 0,
+          });
+          break;
+        case ModelProvider.MISTRAL:
+          llm = new MistralAI({
+            model: modelName || "mistral-large-latest", // Changed from modelName to model
+            temperature: 0,
+          });
+          break;
+        default:
+          llm = new OpenAI({
+            modelName: modelName,
+            temperature: 0,
+          });
+      }
       return new ConversationTokenBufferMemory({
         returnMessages: true,
         memoryKey: "chat_history",

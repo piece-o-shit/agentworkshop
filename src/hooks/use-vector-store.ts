@@ -50,7 +50,7 @@ export function useVectorStore(options: UseVectorStoreOptions = {}) {
         variant: 'destructive',
       });
     }
-  }, [options.tableName, options.queryName]);
+  }, [options.tableName, options.queryName, toast]);
 
   // Add documents mutation
   const addDocumentsMutation = useMutation({

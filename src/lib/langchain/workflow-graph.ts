@@ -4,7 +4,7 @@ import { BaseMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
 import { RunnableSequence } from "@langchain/core/runnables";
 import { Tool } from "@langchain/core/tools";
 import { WorkflowStep, Workflow } from "@/types/workflow";
-import { AgentExecutorResult, AgentType } from "./agent-types";
+import { AgentExecutorResult, AgentType, ModelProvider } from "./agent-types";
 import { executeAgent } from "./config";
 
 type WorkflowStatus = 'running' | 'completed' | 'error';
@@ -83,6 +83,7 @@ export function createWorkflowGraph(context: WorkflowContext) {
           name: currentStep.name,
           description: `Executing workflow step: ${currentStep.name}`,
           type: AgentType.STRUCTURED_CHAT,
+          provider: ModelProvider.OPENAI,
           model_config: {
             temperature: 0,
             model: "gpt-4",
@@ -110,7 +111,7 @@ export function createWorkflowGraph(context: WorkflowContext) {
         return {
           messages: [...state.messages, new AIMessage(result.output)],
           current_step: state.current_step + 1,
-          workflow_status: state.current_step >= context.workflow.steps.length - 1 ? 'completed' : 'running',
+          workflow_status: state.current_step >= (Array.isArray(context.workflow.steps) ? context.workflow.steps.length : 0) - 1 ? 'completed' : 'running',
           step_results: [...state.step_results, {
             step: currentStep,
             result,
