@@ -68,9 +68,12 @@ export function useAgentExecution(agentId: string) {
           input,
         });
 
+        // Get the response from the invoke method result
+        const responseText = result.invoke.output;
+
         // Store the result as a JSON-compatible object
         const jsonResult = {
-          response: result.output || result.toString(),
+          response: responseText,
           timestamp: new Date().toISOString()
         };
 
